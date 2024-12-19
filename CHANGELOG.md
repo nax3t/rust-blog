@@ -12,6 +12,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Integration tests for web endpoints
 - Manual testing capability via localhost:3000
 
+### Changed
+- Added proper form validation with UNPROCESSABLE_ENTITY status codes
+- Added Post ID getter and usage in HTML output
+- Fixed compiler warnings for unused imports and fields
+
 ## [0.1.0] - 2024-12-19
 ### Added
 - Initial project setup with Cargo

@@ -6,10 +6,11 @@ use axum::{
     routing::{get, post},
     Router,
     extract::{State, Form},
-    response::{Html, Redirect, Response},
+    response::{Html, Response},
     http::{StatusCode, HeaderMap, header},
 };
 use serde::Deserialize;
+use url::Url;
 
 #[derive(Debug, Clone)]
 pub struct Post {
@@ -27,6 +28,10 @@ impl Post {
             body: body.to_string(),
             image_url: image_url.to_string(),
         }
+    }
+
+    pub fn id(&self) -> Option<i64> {
+        self.id
     }
 
     pub fn title(&self) -> &str {
@@ -142,8 +147,8 @@ impl App {
                     "<html><body><h1>Blog Posts</h1><ul>{}</ul><a href='/posts/new'>New Post</a></body></html>",
                     posts.iter()
                         .map(|p| format!(
-                            "<li><h2>{}</h2><p>{}</p><img src='{}' width='200'></li>",
-                            p.title(), p.body(), p.image_url()
+                            "<li id='post-{}'><h2>{}</h2><p>{}</p><img src='{}' width='200'></li>",
+                            p.id().unwrap_or(0), p.title(), p.body(), p.image_url()
                         ))
                         .collect::<Vec<_>>()
                         .join("\n")
@@ -187,6 +192,16 @@ impl App {
         State(app): State<App>,
         Form(form): Form<CreatePost>,
     ) -> Result<Response, StatusCode> {
+        // Validate form data
+        if form.title.trim().is_empty() || form.body.trim().is_empty() {
+            return Err(StatusCode::UNPROCESSABLE_ENTITY);
+        }
+
+        // Validate URL
+        if Url::parse(&form.image_url).is_err() {
+            return Err(StatusCode::UNPROCESSABLE_ENTITY);
+        }
+
         let post = Post::new(&form.title, &form.body, &form.image_url);
         match app.db.create_post(&post) {
             Ok(_) => {
