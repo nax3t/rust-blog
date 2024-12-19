@@ -1,26 +1,18 @@
-use rust_blog::{App, BlogDb};
 use std::net::SocketAddr;
-use axum::serve;
+use rust_blog::{App, BlogDb};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    // Initialize the database
     let db = BlogDb::new("blog.db")?;
-    
-    // Create the app
     let app = App::new(db);
-    
-    // Create the router
-    let app = app.router();
-    
-    // Run the server
+    let router = app.router();
+
     let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
-    println!("Server running on http://{}", addr);
-    
-    serve(
-        tokio::net::TcpListener::bind(&addr).await?,
-        app
-    ).await?;
-    
+    println!("Listening on http://{}", addr);
+
+    axum::Server::bind(&addr)
+        .serve(router.into_make_service())
+        .await?;
+
     Ok(())
 }

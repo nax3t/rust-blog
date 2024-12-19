@@ -6,14 +6,16 @@ edition = "2021"
 [dependencies]
 rusqlite = { version = "0.29.0", features = ["bundled"] }
 anyhow = "1.0"
-axum = "0.6"
+axum = { version = "0.6", features = ["form"] }
 tokio = { version = "1.0", features = ["full"] }
 serde = { version = "1.0", features = ["derive"] }
-tower = "0.4"
+tower = { version = "0.4", features = ["util"] }
 tower-http = { version = "0.4", features = ["fs"] }
 hyper = "0.14"
 url = "2.5"
 html-escape = "0.2.13"
+r2d2 = "0.8"
+r2d2_sqlite = "0.22"
 
 [dev-dependencies]
 tempfile = "3.8"

@@ -1,16 +1,15 @@
-use rust_blog::{Post, BlogDb};
+use rust_blog::{BlogDb, Post};
+use anyhow::Result;
 use tempfile::tempdir;
-use std::fs;
-use anyhow;
 
 // This file will contain our integration tests
 #[test]
-fn test_placeholder() -> anyhow::Result<()> {
+fn test_placeholder() -> Result<()> {
     Ok(())
 }
 
 #[test]
-fn test_db_creation() -> anyhow::Result<()> {
+fn test_db_creation() -> Result<()> {
     let temp_dir = tempdir()?;
     let db_path = temp_dir.path().join("test.db");
     let _db = BlogDb::new(&db_path)?;
@@ -18,7 +17,7 @@ fn test_db_creation() -> anyhow::Result<()> {
 }
 
 #[test]
-fn test_create_post() -> anyhow::Result<()> {
+fn test_create_post() -> Result<()> {
     let temp_dir = tempdir()?;
     let db_path = temp_dir.path().join("test.db");
     let db = BlogDb::new(&db_path)?;
@@ -31,7 +30,7 @@ fn test_create_post() -> anyhow::Result<()> {
 }
 
 #[test]
-fn test_post_persistence() -> anyhow::Result<()> {
+fn test_post_persistence() -> Result<()> {
     let temp_dir = tempdir()?;
     let db_path = temp_dir.path().join("test.db");
     let db = BlogDb::new(&db_path)?;
@@ -48,7 +47,7 @@ fn test_post_persistence() -> anyhow::Result<()> {
 }
 
 #[test]
-fn test_db_error_handling() -> anyhow::Result<()> {
+fn test_db_error_handling() -> Result<()> {
     let temp_dir = tempdir()?;
     let db_path = temp_dir.path().join("test.db");
     let db = BlogDb::new(&db_path)?;
@@ -61,7 +60,7 @@ fn test_db_error_handling() -> anyhow::Result<()> {
 }
 
 #[test]
-fn test_get_post() -> anyhow::Result<()> {
+fn test_get_post() -> Result<()> {
     let temp_dir = tempdir()?;
     let db_path = temp_dir.path().join("test.db");
     let db = BlogDb::new(&db_path)?;
@@ -86,7 +85,7 @@ fn test_get_post() -> anyhow::Result<()> {
 }
 
 #[test]
-fn test_list_posts_order() -> anyhow::Result<()> {
+fn test_list_posts_order() -> Result<()> {
     let temp_dir = tempdir()?;
     let db_path = temp_dir.path().join("test.db");
     let db = BlogDb::new(&db_path)?;
@@ -111,7 +110,7 @@ fn test_list_posts_order() -> anyhow::Result<()> {
 }
 
 #[test]
-fn test_empty_database() -> anyhow::Result<()> {
+fn test_empty_database() -> Result<()> {
     let temp_dir = tempdir()?;
     let db_path = temp_dir.path().join("test.db");
     let db = BlogDb::new(&db_path)?;

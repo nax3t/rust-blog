@@ -2,8 +2,8 @@ use rust_blog::{BlogDb, Post, App};
 use axum::{
     body::Body,
     http::{Request, StatusCode},
-    body::to_bytes,
 };
+use hyper::body::to_bytes;
 use tempfile::tempdir;
 use tower::ServiceExt;
 use anyhow::Result;
@@ -49,7 +49,7 @@ async fn test_index_page_exists() -> Result<()> {
     assert_eq!(response.status(), StatusCode::OK);
     
     // Get response body
-    let body = to_bytes(response.into_body(), usize::MAX).await?;
+    let body = to_bytes(response.into_body()).await?;
     let body = String::from_utf8(body.to_vec())?;
     
     // Check if test posts are displayed
@@ -78,7 +78,7 @@ async fn test_new_post_form_exists() -> Result<()> {
     assert_eq!(response.status(), StatusCode::OK);
     
     // Get response body
-    let body = to_bytes(response.into_body(), usize::MAX).await?;
+    let body = to_bytes(response.into_body()).await?;
     let body = String::from_utf8(body.to_vec())?;
     
     // Check if form elements exist
@@ -188,7 +188,7 @@ async fn test_empty_index_page() -> Result<()> {
     
     assert_eq!(response.status(), StatusCode::OK);
     
-    let body = to_bytes(response.into_body(), usize::MAX).await?;
+    let body = to_bytes(response.into_body()).await?;
     let body = String::from_utf8(body.to_vec())?;
     
     // Check that we have the basic structure but no posts
@@ -215,7 +215,7 @@ async fn test_malformed_post_data() -> Result<()> {
                 .body(Body::from("not-form-data"))?,
         )
         .await?;
-    assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
+    assert_eq!(response.status(), StatusCode::UNSUPPORTED_MEDIA_TYPE);
     
     // Test malformed form data
     let response = app
@@ -264,7 +264,7 @@ async fn test_html_escaping() -> Result<()> {
         .oneshot(Request::builder().uri("/").body(Body::empty())?)
         .await?;
     
-    let body = to_bytes(response.into_body(), usize::MAX).await?;
+    let body = to_bytes(response.into_body()).await?;
     let body = String::from_utf8(body.to_vec())?;
     
     assert!(body.contains("&lt;script&gt;alert('xss')&lt;/script&gt;"));

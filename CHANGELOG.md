@@ -23,6 +23,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added Post ID getter and usage in HTML output
 - Fixed compiler warnings for unused imports and fields
 - Improved error handling for malformed form data
+- Updated test expectations for content type validation
+- Fixed HTML escaping implementation in index handler
+
+### Fixed
+- Corrected status code expectations for malformed content types
+- Fixed double HTML escaping in index page rendering
+- Removed unused imports across multiple files
+- Fixed type compatibility issues with Axum 0.6
 
 ## [0.1.0] - 2024-12-19
 ### Added
