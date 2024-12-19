@@ -5,6 +5,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### Added
+- Web server implementation using Axum
+- Thread-safe SQLite connection pool using r2d2
+- Web routes for viewing and creating posts
+- Integration tests for web endpoints
+- Manual testing capability via localhost:3000
 
 ## [0.1.0] - 2024-12-19
 ### Added
