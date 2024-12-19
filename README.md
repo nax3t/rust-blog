@@ -11,6 +11,17 @@ A secure and efficient blog engine written in Rust, featuring a SQLite backend a
 - **Form Validation**: Robust input validation and error handling
 - **Image Support**: Support for blog posts with images via URLs
 
+## Documentation
+
+Comprehensive documentation is available in the [docs](docs) directory:
+
+- [Quick Start Guide](docs/guides/quickstart.md)
+- [API Documentation](docs/api/overview.md)
+- [Development Guide](docs/development/guide.md)
+- [Database Schema](docs/api/database.md)
+
+For a complete overview of the documentation, see the [Documentation Index](docs/README.md).
+
 ## Development
 
 ### Prerequisites
@@ -50,6 +61,10 @@ rust-blog/
 ├── tests/
 │   ├── blog_tests.rs   # Database integration tests
 │   └── web_tests.rs    # Web endpoint tests
+├── docs/          # Comprehensive documentation
+│   ├── guides/    # User guides and tutorials
+│   ├── api/       # API and database documentation
+│   └── development/ # Developer documentation
 └── blog.db        # SQLite database (created on first run)
 ```
 
@@ -60,6 +75,8 @@ rust-blog/
 3. Commit your changes (`git commit -m 'Add some amazing feature'`)
 4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
+
+For detailed development guidelines, see our [Development Guide](docs/development/guide.md).
 
 ## Versioning
 This project follows [SemVer](https://semver.org/) for versioning. For the versions available, see the tags on this repository.
