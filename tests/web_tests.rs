@@ -6,8 +6,9 @@ use axum::{
 };
 use tempfile::tempdir;
 use tower::ServiceExt;
+use anyhow::Result;
 
-async fn setup_test_app() -> anyhow::Result<(App, BlogDb)> {
+async fn setup_test_app() -> Result<(App, BlogDb)> {
     let temp_dir = tempdir()?;
     let db_path = temp_dir.path().join("test.db");
     let db = BlogDb::new(&db_path)?;
@@ -37,7 +38,7 @@ async fn setup_test_app() -> anyhow::Result<(App, BlogDb)> {
 }
 
 #[tokio::test]
-async fn test_index_page_exists() -> anyhow::Result<()> {
+async fn test_index_page_exists() -> Result<()> {
     let (app, _) = setup_test_app().await?;
     let app = app.router();
     
@@ -66,7 +67,7 @@ async fn test_index_page_exists() -> anyhow::Result<()> {
 }
 
 #[tokio::test]
-async fn test_new_post_form_exists() -> anyhow::Result<()> {
+async fn test_new_post_form_exists() -> Result<()> {
     let (app, _) = setup_test_app().await?;
     let app = app.router();
     
@@ -91,7 +92,7 @@ async fn test_new_post_form_exists() -> anyhow::Result<()> {
 }
 
 #[tokio::test]
-async fn test_create_post_endpoint() -> anyhow::Result<()> {
+async fn test_create_post_endpoint() -> Result<()> {
     let (app, db) = setup_test_app().await?;
     let app = app.router();
     
@@ -123,7 +124,7 @@ async fn test_create_post_endpoint() -> anyhow::Result<()> {
 }
 
 #[tokio::test]
-async fn test_post_validation() -> anyhow::Result<()> {
+async fn test_post_validation() -> Result<()> {
     let (app, _) = setup_test_app().await?;
     let app = app.router();
     
@@ -168,6 +169,106 @@ async fn test_post_validation() -> anyhow::Result<()> {
         )
         .await?;
     assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
+    
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_empty_index_page() -> Result<()> {
+    // Create a new app with an empty database
+    let temp_dir = tempdir()?;
+    let db_path = temp_dir.path().join("test.db");
+    let db = BlogDb::new(&db_path)?;
+    let app = App::new(db);
+    let app = app.router();
+    
+    let response = app
+        .oneshot(Request::builder().uri("/").body(Body::empty())?)
+        .await?;
+    
+    assert_eq!(response.status(), StatusCode::OK);
+    
+    let body = to_bytes(response.into_body(), usize::MAX).await?;
+    let body = String::from_utf8(body.to_vec())?;
+    
+    // Check that we have the basic structure but no posts
+    assert!(body.contains("<h1>Blog Posts</h1>"));
+    assert!(body.contains("<ul></ul>"));
+    assert!(body.contains(r#"<a href='/posts/new'>New Post</a>"#));
+    
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_malformed_post_data() -> Result<()> {
+    let (app, _) = setup_test_app().await?;
+    let app = app.router();
+    
+    // Test malformed content type
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/posts")
+                .header("content-type", "text/plain")
+                .body(Body::from("not-form-data"))?,
+        )
+        .await?;
+    assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
+    
+    // Test malformed form data
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/posts")
+                .header("content-type", "application/x-www-form-urlencoded")
+                .body(Body::from("not=valid&form=data"))?,
+        )
+        .await?;
+    assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
+    
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_html_escaping() -> Result<()> {
+    let (app, db) = setup_test_app().await?;
+    let app = app.router();
+    
+    // Create a post with HTML in the title and body
+    let form_data = "title=<script>alert('xss')</script>&body=<p>html content</p>&image_url=https://example.com/img.jpg";
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/posts")
+                .header("content-type", "application/x-www-form-urlencoded")
+                .body(Body::from(form_data))?,
+        )
+        .await?;
+    
+    assert_eq!(response.status(), StatusCode::SEE_OTHER);
+    
+    // Verify the post was created and HTML is escaped
+    let posts = db.list_posts()?;
+    let post = posts.iter().find(|p| p.title().contains("script")).unwrap();
+    assert!(post.title().contains("&lt;script&gt;"));
+    assert!(post.body().contains("&lt;p&gt;"));
+    
+    // Check the index page
+    let response = app
+        .oneshot(Request::builder().uri("/").body(Body::empty())?)
+        .await?;
+    
+    let body = to_bytes(response.into_body(), usize::MAX).await?;
+    let body = String::from_utf8(body.to_vec())?;
+    
+    assert!(body.contains("&lt;script&gt;alert('xss')&lt;/script&gt;"));
+    assert!(body.contains("&lt;p&gt;html content&lt;/p&gt;"));
     
     Ok(())
 }

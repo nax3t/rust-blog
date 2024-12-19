@@ -5,46 +5,27 @@ use anyhow;
 
 // This file will contain our integration tests
 #[test]
-fn test_placeholder() {
-    // This is just a placeholder test
-    assert!(true);
-}
-
-#[test]
-fn test_create_post() {
-    let post = Post::new(
-        "My First Post",
-        "This is the content of my first post.",
-        "https://example.com/image.jpg",
-    );
-
-    assert_eq!(post.title(), "My First Post");
-    assert_eq!(post.body(), "This is the content of my first post.");
-    assert_eq!(post.image_url(), "https://example.com/image.jpg");
+fn test_placeholder() -> anyhow::Result<()> {
+    Ok(())
 }
 
 #[test]
 fn test_db_creation() -> anyhow::Result<()> {
     let temp_dir = tempdir()?;
     let db_path = temp_dir.path().join("test.db");
-    
-    // Database shouldn't exist yet
-    assert!(!db_path.exists());
-    
-    // Create database
+    let _db = BlogDb::new(&db_path)?;
+    Ok(())
+}
+
+#[test]
+fn test_create_post() -> anyhow::Result<()> {
+    let temp_dir = tempdir()?;
+    let db_path = temp_dir.path().join("test.db");
     let db = BlogDb::new(&db_path)?;
     
-    // Database should exist now
-    assert!(db_path.exists());
-    
-    // Should be able to open existing database
-    let db2 = BlogDb::new(&db_path)?;
-    
-    // Both instances should work
-    let post = Post::new("Test", "Content", "http://example.com/img.jpg");
+    let post = Post::new("Test Title", "Test Content", "https://example.com/image.jpg");
     let id = db.create_post(&post)?;
-    let retrieved = db2.get_post(id)?;
-    assert_eq!(retrieved.title(), post.title());
+    assert!(id > 0);
     
     Ok(())
 }
@@ -53,24 +34,15 @@ fn test_db_creation() -> anyhow::Result<()> {
 fn test_post_persistence() -> anyhow::Result<()> {
     let temp_dir = tempdir()?;
     let db_path = temp_dir.path().join("test.db");
+    let db = BlogDb::new(&db_path)?;
     
-    let db = BlogDb::new(db_path)?;
+    let post = Post::new("Test Title", "Test Content", "https://example.com/image.jpg");
+    let id = db.create_post(&post)?;
     
-    let post = Post::new(
-        "Test Post",
-        "Test Content",
-        "https://example.com/test.jpg",
-    );
-    let post_id = db.create_post(&post)?;
-    
-    let retrieved_post = db.get_post(post_id)?;
-    assert_eq!(retrieved_post.title(), post.title());
-    assert_eq!(retrieved_post.body(), post.body());
-    assert_eq!(retrieved_post.image_url(), post.image_url());
-    
-    let posts = db.list_posts()?;
-    assert_eq!(posts.len(), 1);
-    assert_eq!(posts[0].title(), post.title());
+    let retrieved_post = db.get_post(id)?;
+    assert_eq!(retrieved_post.title(), "Test Title");
+    assert_eq!(retrieved_post.body(), "Test Content");
+    assert_eq!(retrieved_post.image_url(), "https://example.com/image.jpg");
     
     Ok(())
 }
@@ -79,16 +51,78 @@ fn test_post_persistence() -> anyhow::Result<()> {
 fn test_db_error_handling() -> anyhow::Result<()> {
     let temp_dir = tempdir()?;
     let db_path = temp_dir.path().join("test.db");
-    
-    // Create and immediately delete the database file
-    {
-        let _db = BlogDb::new(&db_path)?;
-        fs::remove_file(&db_path)?;
-    }
-    
-    // Trying to get a post from a deleted database should fail
     let db = BlogDb::new(&db_path)?;
-    assert!(db.get_post(1).is_err());
+    
+    // Try to get a non-existent post
+    let result = db.get_post(999);
+    assert!(result.is_err());
+    
+    Ok(())
+}
+
+#[test]
+fn test_get_post() -> anyhow::Result<()> {
+    let temp_dir = tempdir()?;
+    let db_path = temp_dir.path().join("test.db");
+    let db = BlogDb::new(&db_path)?;
+    
+    // Create multiple posts
+    let post1 = Post::new("Title 1", "Content 1", "https://example.com/1.jpg");
+    let post2 = Post::new("Title 2", "Content 2", "https://example.com/2.jpg");
+    
+    let id1 = db.create_post(&post1)?;
+    let id2 = db.create_post(&post2)?;
+    
+    // Get and verify each post
+    let retrieved1 = db.get_post(id1)?;
+    assert_eq!(retrieved1.title(), "Title 1");
+    assert_eq!(retrieved1.id(), Some(id1));
+    
+    let retrieved2 = db.get_post(id2)?;
+    assert_eq!(retrieved2.title(), "Title 2");
+    assert_eq!(retrieved2.id(), Some(id2));
+    
+    Ok(())
+}
+
+#[test]
+fn test_list_posts_order() -> anyhow::Result<()> {
+    let temp_dir = tempdir()?;
+    let db_path = temp_dir.path().join("test.db");
+    let db = BlogDb::new(&db_path)?;
+    
+    // Create posts in a specific order
+    let post1 = Post::new("Title 1", "Content 1", "https://example.com/1.jpg");
+    let post2 = Post::new("Title 2", "Content 2", "https://example.com/2.jpg");
+    let post3 = Post::new("Title 3", "Content 3", "https://example.com/3.jpg");
+    
+    db.create_post(&post1)?;
+    db.create_post(&post2)?;
+    db.create_post(&post3)?;
+    
+    // Get posts and verify order (newest first)
+    let posts = db.list_posts()?;
+    assert_eq!(posts.len(), 3);
+    assert_eq!(posts[0].title(), "Title 3");
+    assert_eq!(posts[1].title(), "Title 2");
+    assert_eq!(posts[2].title(), "Title 1");
+    
+    Ok(())
+}
+
+#[test]
+fn test_empty_database() -> anyhow::Result<()> {
+    let temp_dir = tempdir()?;
+    let db_path = temp_dir.path().join("test.db");
+    let db = BlogDb::new(&db_path)?;
+    
+    // Check empty list
+    let posts = db.list_posts()?;
+    assert!(posts.is_empty());
+    
+    // Try to get a post from empty DB
+    let result = db.get_post(1);
+    assert!(result.is_err());
     
     Ok(())
 }

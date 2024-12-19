@@ -11,6 +11,7 @@ use axum::{
 };
 use serde::Deserialize;
 use url::Url;
+use html_escape::encode_text;
 
 #[derive(Debug, Clone)]
 pub struct Post {
@@ -45,6 +46,13 @@ impl Post {
     pub fn image_url(&self) -> &str {
         &self.image_url
     }
+}
+
+#[derive(Debug, Deserialize)]
+pub struct CreatePost {
+    title: String,
+    body: String,
+    image_url: String,
 }
 
 #[derive(Clone)]
@@ -120,7 +128,6 @@ impl BlogDb {
     }
 }
 
-#[derive(Clone)]
 pub struct App {
     db: BlogDb,
 }
@@ -133,7 +140,7 @@ impl App {
     pub fn router(self) -> Router {
         Router::new()
             .route("/", get(Self::index))
-            .route("/posts/new", get(Self::new_post_form))
+            .route("/posts/new", get(Self::new_post))
             .route("/posts", post(Self::create_post))
             .with_state(self)
     }
@@ -148,7 +155,10 @@ impl App {
                     posts.iter()
                         .map(|p| format!(
                             "<li id='post-{}'><h2>{}</h2><p>{}</p><img src='{}' width='200'></li>",
-                            p.id().unwrap_or(0), p.title(), p.body(), p.image_url()
+                            p.id().unwrap_or(0),
+                            encode_text(p.title()),
+                            encode_text(p.body()),
+                            encode_text(p.image_url())
                         ))
                         .collect::<Vec<_>>()
                         .join("\n")
@@ -162,30 +172,29 @@ impl App {
         }
     }
 
-    async fn new_post_form() -> Result<Html<String>, StatusCode> {
-        let html = r#"
+    async fn new_post() -> Html<&'static str> {
+        Html(r#"
             <html>
-            <body>
-                <h1>New Blog Post</h1>
-                <form action="/posts" method="post">
-                    <div>
-                        <label for="title">Title:</label><br>
-                        <input type="text" id="title" name="title" required>
-                    </div>
-                    <div>
-                        <label for="body">Content:</label><br>
-                        <textarea id="body" name="body" required></textarea>
-                    </div>
-                    <div>
-                        <label for="image_url">Image URL:</label><br>
-                        <input type="url" id="image_url" name="image_url" required>
-                    </div>
-                    <button type="submit">Create Post</button>
-                </form>
-            </body>
+                <body>
+                    <h1>New Post</h1>
+                    <form action="/posts" method="post">
+                        <div>
+                            <label for="title">Title:</label><br>
+                            <input type="text" id="title" name="title" required>
+                        </div>
+                        <div>
+                            <label for="body">Content:</label><br>
+                            <textarea id="body" name="body" required></textarea>
+                        </div>
+                        <div>
+                            <label for="image_url">Image URL:</label><br>
+                            <input type="url" id="image_url" name="image_url" required>
+                        </div>
+                        <button type="submit">Create Post</button>
+                    </form>
+                </body>
             </html>
-        "#;
-        Ok(Html(html.to_string()))
+        "#)
     }
 
     async fn create_post(
@@ -202,7 +211,13 @@ impl App {
             return Err(StatusCode::UNPROCESSABLE_ENTITY);
         }
 
-        let post = Post::new(&form.title, &form.body, &form.image_url);
+        // Create post with escaped HTML
+        let post = Post::new(
+            &encode_text(&form.title),
+            &encode_text(&form.body),
+            &encode_text(&form.image_url)
+        );
+
         match app.db.create_post(&post) {
             Ok(_) => {
                 let mut headers = HeaderMap::new();
@@ -219,11 +234,4 @@ impl App {
             },
         }
     }
-}
-
-#[derive(Deserialize)]
-pub struct CreatePost {
-    title: String,
-    body: String,
-    image_url: String,
 }
