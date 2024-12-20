@@ -1,0 +1,20 @@
+{% extends "base" %}
+
+{% block title %}{{ title }} - Rust Blog{% endblock %}
+
+{% block content %}
+    <h2>{{ title }}</h2>
+    
+    {% if posts | length == 0 %}
+        <p>No posts yet. Why not <a href="/posts/new">create one</a>?</p>
+    {% else %}
+        <ul>
+        {% for post in posts %}
+            <li>
+                <h3><a href="/posts/{{ post.id }}">{{ post.title }}</a></h3>
+                <p>{{ post.body | truncate(length=100) }}</p>
+            </li>
+        {% endfor %}
+        </ul>
+    {% endif %}
+{% endblock %}

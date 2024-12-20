@@ -499,3 +499,8 @@ impl BlogDb {
         Ok(())
     }
 }
+
+pub mod rocket_app;
+
+// Re-export rocket for convenience
+pub use rocket_app::rocket;

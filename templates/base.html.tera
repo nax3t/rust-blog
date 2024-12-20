@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Rust Blog{% endblock %}</title>
+    <style>
+        body {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 1rem;
+            font-family: system-ui, sans-serif;
+            line-height: 1.5;
+        }
+        .container {
+            margin-top: 2rem;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1><a href="/" style="text-decoration: none; color: inherit;">Rust Blog</a></h1>
+        <nav>
+            <a href="/posts">All Posts</a> |
+            <a href="/posts/new">New Post</a>
+        </nav>
+    </header>
+
+    <main class="container">
+        {% block content %}{% endblock %}
+    </main>
+</body>
+</html>
