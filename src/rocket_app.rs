@@ -27,10 +27,11 @@ fn index() -> Redirect {
 /// List all posts
 #[get("/posts")]
 async fn posts(state: &State<RocketState>) -> Template {
-    // For now, just return an empty list while we test the setup
+    let posts = state.db.list_posts().unwrap_or_default();
+    
     Template::render("posts/index", context! {
         title: "Blog Posts",
-        posts: Vec::<String>::new()
+        posts: posts
     })
 }
 

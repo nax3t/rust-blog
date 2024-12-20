@@ -8,7 +8,7 @@ use axum::{
     http::{self, StatusCode, header},
     middleware::{self, Next},
 };
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use url::Url;
 use hyper::Request;
 use r2d2::Pool;
@@ -36,7 +36,7 @@ async fn method_override<B>(
     next.run(req).await
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct Post {
     id: Option<i64>,
     title: String,
