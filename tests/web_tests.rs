@@ -766,3 +766,89 @@ async fn test_edit_form_has_method_override() -> Result<()> {
 
     Ok(())
 }
+
+#[tokio::test]
+async fn test_show_post_has_delete_button() -> Result<()> {
+    let (app, db) = setup_test_app().await?;
+    let _post = db.get_post(1)?;
+    let app = app.router();
+
+    let response = app
+        .oneshot(Request::builder().uri("/posts/1").body(Body::empty())?)
+        .await?;
+
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = String::from_utf8(to_bytes(response.into_body()).await?.to_vec())?;
+    
+    // Check for delete form with proper method override
+    assert!(body.contains(r#"<form action="/posts/1" method="post" style="display: inline">"#));
+    assert!(body.contains(r#"<input type="hidden" name="_method" value="DELETE">"#));
+    assert!(body.contains(r#"<button type="submit""#));
+    assert!(body.contains("Delete Post"));
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_delete_post() -> Result<()> {
+    let (app, db) = setup_test_app().await?;
+    let _post = db.get_post(1)?;
+    let app = app.router();
+
+    // Delete the post
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method("DELETE")
+                .uri("/posts/1")
+                .body(Body::empty())?
+        )
+        .await?;
+
+    assert_eq!(response.status(), StatusCode::SEE_OTHER);
+    assert_eq!(
+        response.headers().get(header::LOCATION).unwrap(),
+        "/posts"
+    );
+
+    // Verify post is deleted
+    assert!(db.get_post(1).is_err());
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_delete_nonexistent_post() -> Result<()> {
+    let (app, _) = setup_test_app().await?;
+    let app = app.router();
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method("DELETE")
+                .uri("/posts/999")
+                .body(Body::empty())?
+        )
+        .await?;
+
+    assert_eq!(response.status(), StatusCode::NOT_FOUND);
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_delete_post_invalid_id() -> Result<()> {
+    let (app, _) = setup_test_app().await?;
+    let app = app.router();
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method("DELETE")
+                .uri("/posts/invalid")
+                .body(Body::empty())?
+        )
+        .await?;
+
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    Ok(())
+}

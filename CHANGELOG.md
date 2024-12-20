@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+- Delete functionality for blog posts
+  - Method override support for DELETE operations
+  - Confirmation dialog before deletion
+  - Proper form handling and redirection
 - Web server implementation using Axum
 - Thread-safe SQLite connection pool using r2d2
 - Web routes for viewing and creating posts
