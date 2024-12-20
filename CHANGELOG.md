@@ -23,10 +23,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Development Guide with Best Practices
   - Database Schema Documentation
   - Installation and Configuration Guides
-- Tests for post detail view feature (failing)
-  - View single post by ID
-  - Handle non-existent posts
-  - Validate post ID format
+- Post detail view feature
+  - View single post by ID with formatted paragraphs
+  - Handle non-existent posts with 404 response
+  - Validate post ID format with 400 response
+  - Links to individual posts from index page
+  - Back to Posts navigation
 
 ### Changed
 - Added proper form validation with UNPROCESSABLE_ENTITY status codes
@@ -36,6 +38,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Updated test expectations for content type validation
 - Fixed HTML escaping implementation in index handler
 - Enhanced project documentation structure and organization
+- Improved post list view with clickable titles
 
 ### Fixed
 - Corrected status code expectations for malformed content types

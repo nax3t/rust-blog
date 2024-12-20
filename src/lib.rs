@@ -2,7 +2,7 @@ use std::sync::Arc;
 use axum::{
     routing::{get, post},
     Router,
-    extract::{State, Form},
+    extract::{State, Form, Path},
     response::{Html, Response, IntoResponse},
     http::{StatusCode, header},
     body::BoxBody,
@@ -72,6 +72,7 @@ impl App {
             .route("/", get(Self::index))
             .route("/posts/new", get(Self::new_post))
             .route("/posts", post(Self::create_post))
+            .route("/posts/:id", get(Self::show_post))
             .with_state(self)
     }
 
@@ -84,11 +85,12 @@ impl App {
                     "<html><body><h1>Blog Posts</h1><ul>{}</ul><a href='/posts/new'>New Post</a></body></html>",
                     posts.iter()
                         .map(|p| format!(
-                            "<li id='post-{}'><h2>{}</h2><p>{}</p><img src='{}' width='200'></li>",
+                            "<li id='post-{}'><h2><a href='/posts/{}'>{}</a></h2><p>{}</p><img src='{}' width='200'></li>",
                             p.id().unwrap_or(0),
-                            p.title(),  
-                            p.body(),   
-                            p.image_url() 
+                            p.id().unwrap_or(0),
+                            p.title(),
+                            p.body(),
+                            p.image_url()
                         ))
                         .collect::<Vec<_>>()
                         .join("\n")
@@ -160,6 +162,45 @@ impl App {
                 eprintln!("Error creating post: {:?}", e);
                 Err(StatusCode::INTERNAL_SERVER_ERROR)
             },
+        }
+    }
+
+    async fn show_post(
+        State(app): State<App>,
+        Path(id): Path<String>,
+    ) -> Result<impl IntoResponse, StatusCode> {
+        // Parse and validate the ID
+        let post_id = id.parse::<i64>().map_err(|_| StatusCode::BAD_REQUEST)?;
+        
+        match app.db.get_post(post_id) {
+            Ok(post) => {
+                let html = format!(
+                    r#"
+                    <html>
+                        <body>
+                            <article>
+                                <h1>{}</h1>
+                                <div class="content">
+                                    {}
+                                </div>
+                                <img src="{}" alt="Post image" style="max-width: 100%;">
+                            </article>
+                            <p><a href="/">Back to Posts</a></p>
+                        </body>
+                    </html>
+                    "#,
+                    post.title(),
+                    // Replace newlines with paragraph tags for better formatting
+                    post.body()
+                        .split("\n\n")
+                        .map(|p| format!("<p>{}</p>", p))
+                        .collect::<Vec<_>>()
+                        .join("\n"),
+                    post.image_url(),
+                );
+                Ok(Html(html))
+            },
+            Err(_) => Err(StatusCode::NOT_FOUND),
         }
     }
 }
