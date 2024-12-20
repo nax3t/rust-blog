@@ -272,3 +272,66 @@ async fn test_html_escaping() -> Result<()> {
     
     Ok(())
 }
+
+#[tokio::test]
+async fn test_show_post() -> Result<()> {
+    let (app, db) = setup_test_app().await?;
+    let app = app.router();
+
+    // Create a test post
+    let post = Post::new(
+        "Test Post Title",
+        "Test Post Content with multiple paragraphs.\n\nSecond paragraph here.",
+        "https://example.com/test.jpg",
+    );
+    let post_id = db.create_post(&post)?;
+
+    // Test viewing the post
+    let response = app
+        .oneshot(Request::builder().uri(format!("/posts/{}", post_id)).body(Body::empty())?)
+        .await?;
+
+    assert_eq!(response.status(), StatusCode::OK);
+
+    let body = to_bytes(response.into_body()).await?;
+    let body = String::from_utf8(body.to_vec())?;
+
+    // Check post content is displayed
+    assert!(body.contains("Test Post Title"));
+    assert!(body.contains("Test Post Content with multiple paragraphs."));
+    assert!(body.contains("Second paragraph here."));
+    assert!(body.contains("https://example.com/test.jpg"));
+    
+    // Check navigation elements
+    assert!(body.contains(r#"<a href="/">Back to Posts</a>"#));
+    
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_show_nonexistent_post() -> Result<()> {
+    let (app, _) = setup_test_app().await?;
+    let app = app.router();
+
+    // Try to view a post that doesn't exist
+    let response = app
+        .oneshot(Request::builder().uri("/posts/999").body(Body::empty())?)
+        .await?;
+
+    assert_eq!(response.status(), StatusCode::NOT_FOUND);
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_show_post_invalid_id() -> Result<()> {
+    let (app, _) = setup_test_app().await?;
+    let app = app.router();
+
+    // Try to view a post with invalid ID format
+    let response = app
+        .oneshot(Request::builder().uri("/posts/invalid").body(Body::empty())?)
+        .await?;
+
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    Ok(())
+}

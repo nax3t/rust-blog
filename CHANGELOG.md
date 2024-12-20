@@ -23,6 +23,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Development Guide with Best Practices
   - Database Schema Documentation
   - Installation and Configuration Guides
+- Tests for post detail view feature (failing)
+  - View single post by ID
+  - Handle non-existent posts
+  - Validate post ID format
 
 ### Changed
 - Added proper form validation with UNPROCESSABLE_ENTITY status codes
