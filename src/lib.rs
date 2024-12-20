@@ -1,17 +1,35 @@
+use std::path::Path;
 use std::sync::Arc;
 use axum::{
-    routing::{get, post},
+    routing::{get, post, put},
     Router,
-    extract::{State, Form, Path},
-    response::{Html, Response, IntoResponse},
-    http::{StatusCode, header},
-    body::BoxBody,
+    extract::{State, Form, Path as AxumPath},
+    response::{Html, IntoResponse, Redirect},
+    http::{self, StatusCode, header},
+    middleware::{self, Next},
 };
 use serde::Deserialize;
 use url::Url;
-use html_escape::encode_text;
+use hyper::Request;
 use r2d2::Pool;
 use r2d2_sqlite::SqliteConnectionManager;
+use anyhow::{Result, anyhow};
+use tempfile;
+use html_escape::encode_text;
+
+async fn method_override<B>(
+    mut req: Request<B>,
+    next: Next<B>,
+) -> impl IntoResponse {
+    if req.method() == http::Method::POST {
+        if let Some(form) = req.extensions_mut().get::<Form<CreatePost>>() {
+            if let Some("PUT") = form.0._method.as_deref() {
+                *req.method_mut() = http::Method::PUT;
+            }
+        }
+    }
+    next.run(req).await
+}
 
 #[derive(Debug, Clone)]
 pub struct Post {
@@ -46,13 +64,19 @@ impl Post {
     pub fn image_url(&self) -> &str {
         &self.image_url
     }
+
+    pub fn set_id(&mut self, id: i64) {
+        self.id = Some(id);
+    }
 }
 
 #[derive(Debug, Deserialize)]
 pub struct CreatePost {
-    title: String,
-    body: String,
-    image_url: String,
+    pub title: String,
+    pub body: String,
+    pub image_url: String,
+    #[serde(default)]
+    pub _method: Option<String>,
 }
 
 #[derive(Clone)]
@@ -69,46 +93,67 @@ impl App {
 
     pub fn router(self) -> Router {
         Router::new()
-            .route("/", get(Self::index))
-            .route("/posts/new", get(Self::new_post))
-            .route("/posts", post(Self::create_post))
-            .route("/posts/:id", get(Self::show_post))
+            .route("/", get(move |_: ()| async { 
+                Redirect::to("/posts") 
+            }))
+            .route("/posts", get(move |state| Self::list_posts(state)))
+            .route("/posts/new", get(move |state| Self::new_post(state)))
+            .route("/posts", post(move |state, form| Self::create_post(state, form)))
+            .route("/posts/:id", get(move |state, path| Self::show_post(state, path)))
+            .route("/posts/:id/edit", get(move |state, path| Self::edit_post(state, path)))
+            .route("/posts/:id", put(move |state, path, form| Self::update_post(state, path, form)))
+            .layer(middleware::from_fn(method_override))
             .with_state(self)
     }
 
-    async fn index(
-        State(app): State<App>
-    ) -> Result<impl IntoResponse, StatusCode> {
-        match app.db.list_posts() {
-            Ok(posts) => {
-                let html = format!(
-                    "<html><body><h1>Blog Posts</h1><ul>{}</ul><a href='/posts/new'>New Post</a></body></html>",
-                    posts.iter()
-                        .map(|p| format!(
-                            "<li id='post-{}'><h2><a href='/posts/{}'>{}</a></h2><p>{}</p><img src='{}' width='200'></li>",
-                            p.id().unwrap_or(0),
-                            p.id().unwrap_or(0),
-                            p.title(),
-                            p.body(),
-                            p.image_url()
-                        ))
-                        .collect::<Vec<_>>()
-                        .join("\n")
-                );
-                Ok(Html(html))
-            },
-            Err(e) => {
-                eprintln!("Error listing posts: {:?}", e);
-                Err(StatusCode::INTERNAL_SERVER_ERROR)
-            },
+    async fn list_posts(State(app): State<App>) -> Result<impl IntoResponse, StatusCode> {
+        let posts = app.db.list_posts().map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+        
+        let mut html = String::from("<html><body>");
+        html.push_str("<h1>Blog Posts</h1>");
+        html.push_str("<ul>");
+        
+        for post in posts {
+            // Sanitize dangerous URLs
+            let image_url = match post.image_url() {
+                url if url.starts_with("javascript:") || 
+                     url.starts_with("data:") || 
+                     url.starts_with("vbscript:") => "#",
+                url => url,
+            };
+
+            // Sanitize the title and body to remove dangerous URLs
+            let sanitize_content = |content: &str| {
+                content.replace("javascript:", "#")
+                      .replace("data:", "#")
+                      .replace("vbscript:", "#")
+            };
+
+            let title = sanitize_content(post.title());
+            let body = sanitize_content(post.body());
+
+            html.push_str(&format!(
+                r#"<li id='post-{}'><h2><a href='/posts/{}'>{}</a></h2><p>{}</p><img src="{}" width='200' alt="Post image"></li>"#,
+                post.id().unwrap_or(0),
+                post.id().unwrap_or(0),
+                encode_text(&title),
+                encode_text(&body),
+                encode_text(image_url)
+            ));
         }
+        
+        html.push_str("</ul>");
+        html.push_str("<a href='/posts/new'>New Post</a>");
+        html.push_str("</body></html>");
+        
+        Ok(Html(html))
     }
 
-    async fn new_post() -> impl IntoResponse {
+    async fn new_post(State(_app): State<App>) -> impl IntoResponse {
         Html(r#"
             <html>
                 <body>
-                    <h1>New Post</h1>
+                    <h1>New Blog Post</h1>
                     <form action="/posts" method="post">
                         <div>
                             <label for="title">Title:</label><br>
@@ -122,53 +167,44 @@ impl App {
                             <label for="image_url">Image URL:</label><br>
                             <input type="url" id="image_url" name="image_url" required>
                         </div>
-                        <button type="submit">Create Post</button>
+                        <div>
+                            <button type="submit">Create Post</button>
+                        </div>
                     </form>
+                    <p><a href="/posts">Back to Posts</a></p>
                 </body>
             </html>
         "#)
     }
 
-    async fn create_post(
-        State(app): State<App>,
-        Form(form): Form<CreatePost>,
-    ) -> Result<impl IntoResponse, StatusCode> {
+    async fn create_post(State(app): State<App>, Form(form): Form<CreatePost>) -> Result<impl IntoResponse, StatusCode> {
         // Validate form data
         if form.title.trim().is_empty() || form.body.trim().is_empty() {
             return Err(StatusCode::UNPROCESSABLE_ENTITY);
         }
-
-        // Validate URL
-        if Url::parse(&form.image_url).is_err() {
+        
+        if !Url::parse(&form.image_url).is_ok() {
             return Err(StatusCode::UNPROCESSABLE_ENTITY);
         }
-
-        // Create post with escaped HTML
+        
+        // Create post with raw HTML
         let post = Post::new(
-            &encode_text(&form.title),
-            &encode_text(&form.body),
-            &encode_text(&form.image_url)
+            &form.title,
+            &form.body,
+            &form.image_url,
         );
-
+        
+        // Save the post
         match app.db.create_post(&post) {
-            Ok(_) => {
-                Ok(Response::builder()
-                    .status(StatusCode::SEE_OTHER)
-                    .header(header::LOCATION, "/")
-                    .body(BoxBody::default())
-                    .unwrap())
-            },
+            Ok(_) => Ok((StatusCode::SEE_OTHER, [(header::LOCATION, "/posts")]).into_response()),
             Err(e) => {
                 eprintln!("Error creating post: {:?}", e);
                 Err(StatusCode::INTERNAL_SERVER_ERROR)
-            },
+            }
         }
     }
 
-    async fn show_post(
-        State(app): State<App>,
-        Path(id): Path<String>,
-    ) -> Result<impl IntoResponse, StatusCode> {
+    async fn show_post(State(app): State<App>, AxumPath(id): AxumPath<String>) -> Result<impl IntoResponse, StatusCode> {
         // Parse and validate the ID
         let post_id = id.parse::<i64>().map_err(|_| StatusCode::BAD_REQUEST)?;
         
@@ -183,38 +219,141 @@ impl App {
                                 <div class="content">
                                     {}
                                 </div>
-                                <img src="{}" alt="Post image" style="max-width: 100%;">
+                                <div class="image">
+                                    <img src="{}" alt="Post image">
+                                </div>
                             </article>
-                            <p><a href="/">Back to Posts</a></p>
+                            <p><a href="/posts">Back to Posts</a></p>
                         </body>
                     </html>
                     "#,
-                    post.title(),
-                    // Replace newlines with paragraph tags for better formatting
+                    encode_text(post.title()),
                     post.body()
                         .split("\n\n")
-                        .map(|p| format!("<p>{}</p>", p))
+                        .map(|p| format!("<p>{}</p>", encode_text(p)))
                         .collect::<Vec<_>>()
                         .join("\n"),
-                    post.image_url(),
+                    encode_text(post.image_url()),
                 );
                 Ok(Html(html))
             },
             Err(_) => Err(StatusCode::NOT_FOUND),
         }
     }
+
+    async fn edit_post(State(app): State<App>, AxumPath(id): AxumPath<String>) -> Result<impl IntoResponse, StatusCode> {
+        // Parse and validate the ID
+        let post_id = id.parse::<i64>().map_err(|_| StatusCode::BAD_REQUEST)?;
+        
+        match app.db.get_post(post_id) {
+            Ok(post) => {
+                let html = format!(
+                    r#"<html><body>
+                        <h1>Edit Post</h1>
+                        <form action="/posts/{}" method="POST" onsubmit="this._method.value='PUT'">
+                            <input type="hidden" name="_method" value="PUT">
+                            <div>
+                                <label for="title">Title:</label><br>
+                                <input type="text" id="title" name="title" value="{}" required>
+                            </div>
+                            <div>
+                                <label for="body">Content:</label><br>
+                                <textarea id="body" name="body" required>{}</textarea>
+                            </div>
+                            <div>
+                                <label for="image_url">Image URL:</label><br>
+                                <input type="url" id="image_url" name="image_url" value="{}" required>
+                            </div>
+                            <input type="submit" value="Update Post">
+                        </form>
+                        <a href="/posts/{}">Back</a>
+                    </body></html>"#,
+                    post_id,
+                    encode_text(post.title()),
+                    encode_text(post.body()),
+                    encode_text(post.image_url()),
+                    post_id
+                );
+                Ok(Html(html))
+            },
+            Err(_) => Err(StatusCode::NOT_FOUND),
+        }
+    }
+
+    async fn update_post(State(app): State<App>, AxumPath(id): AxumPath<String>, Form(form): Form<CreatePost>) -> Result<impl IntoResponse, StatusCode> {
+        // Parse and validate the ID
+        let post_id = id.parse::<i64>().map_err(|_| StatusCode::BAD_REQUEST)?;
+        
+        // Validate form data
+        if form.title.trim().is_empty() || form.body.trim().is_empty() {
+            return Err(StatusCode::UNPROCESSABLE_ENTITY);
+        }
+        
+        if !Url::parse(&form.image_url).is_ok() {
+            return Err(StatusCode::UNPROCESSABLE_ENTITY);
+        }
+
+        // Sanitize dangerous URLs
+        let sanitize_content = |content: &str| {
+            content.replace("javascript:", "#")
+                  .replace("data:", "#")
+                  .replace("vbscript:", "#")
+        };
+
+        let title = sanitize_content(&form.title);
+        let body = sanitize_content(&form.body);
+        let image_url = sanitize_content(&form.image_url);
+        
+        // Create post with sanitized content
+        let post = Post::new(
+            &title,
+            &body,
+            &image_url
+        );
+        
+        // Update the post
+        match app.db.update_post(post_id, &post) {
+            Ok(_) => Ok((StatusCode::SEE_OTHER, [(header::LOCATION, format!("/posts/{}", post_id))]).into_response()),
+            Err(_) => Err(StatusCode::NOT_FOUND),
+        }
+    }
 }
 
+#[derive(Clone)]
 pub struct BlogDb {
     pool: Pool<SqliteConnectionManager>,
+    _temp_dir: Option<Arc<tempfile::TempDir>>, // Keep temp dir alive
 }
 
 impl BlogDb {
-    pub fn new(db_path: impl AsRef<std::path::Path>) -> anyhow::Result<Self> {
-        let manager = SqliteConnectionManager::file(db_path);
+    pub fn new(path: impl AsRef<Path>) -> Result<Self> {
+        let manager = SqliteConnectionManager::file(path);
         let pool = Pool::new(manager)?;
         
-        let conn = pool.get()?;
+        let db = BlogDb { 
+            pool,
+            _temp_dir: None,
+        };
+        db.setup_database()?;
+        Ok(db)
+    }
+
+    pub fn new_temporary() -> Result<Self> {
+        let temp_dir = tempfile::tempdir()?;
+        let db_path = temp_dir.path().join("test.db");
+        let manager = SqliteConnectionManager::file(&db_path);
+        let pool = Pool::new(manager)?;
+        
+        let db = BlogDb { 
+            pool,
+            _temp_dir: Some(Arc::new(temp_dir)),
+        };
+        db.setup_database()?;
+        Ok(db)
+    }
+
+    fn setup_database(&self) -> Result<()> {
+        let conn = self.pool.get()?;
         conn.execute(
             "CREATE TABLE IF NOT EXISTS posts (
                 id INTEGER PRIMARY KEY,
@@ -224,57 +363,66 @@ impl BlogDb {
             )",
             [],
         )?;
-        
-        Ok(BlogDb { pool })
+        Ok(())
     }
 
-    pub fn create_post(&self, post: &Post) -> anyhow::Result<i64> {
+    pub fn create_post(&self, post: &Post) -> Result<i64> {
         let conn = self.pool.get()?;
         conn.execute(
             "INSERT INTO posts (title, body, image_url) VALUES (?1, ?2, ?3)",
-            [&post.title, &post.body, &post.image_url],
+            [post.title(), post.body(), post.image_url()],
         )?;
         Ok(conn.last_insert_rowid())
     }
 
-    pub fn get_post(&self, id: i64) -> anyhow::Result<Post> {
+    pub fn get_post(&self, id: i64) -> Result<Post> {
         let conn = self.pool.get()?;
-        let mut stmt = conn.prepare(
-            "SELECT id, title, body, image_url FROM posts WHERE id = ?1"
-        )?;
-        let post = stmt.query_row([id], |row| {
-            Ok(Post {
-                id: Some(row.get(0)?),
-                title: row.get(1)?,
-                body: row.get(2)?,
-                image_url: row.get(3)?,
-            })
-        })?;
-        Ok(post)
+        let mut stmt = conn.prepare("SELECT title, body, image_url FROM posts WHERE id = ?1")?;
+        let mut rows = stmt.query([id])?;
+        
+        if let Some(row) = rows.next()? {
+            let post = Post::new(
+                &row.get::<_, String>(0)?,
+                &row.get::<_, String>(1)?,
+                &row.get::<_, String>(2)?,
+            );
+            Ok(post)
+        } else {
+            Err(anyhow!("Post not found"))
+        }
     }
 
-    pub fn list_posts(&self) -> anyhow::Result<Vec<Post>> {
+    pub fn list_posts(&self) -> Result<Vec<Post>> {
         let conn = self.pool.get()?;
-        let mut stmt = conn.prepare(
-            "SELECT id, title, body, image_url FROM posts ORDER BY id DESC"
-        )?;
-        let posts = stmt.query_map([], |row| {
-            Ok(Post {
-                id: Some(row.get(0)?),
-                title: row.get(1)?,
-                body: row.get(2)?,
-                image_url: row.get(3)?,
-            })
+        let mut stmt = conn.prepare("SELECT id, title, body, image_url FROM posts ORDER BY id DESC")?;
+        let rows = stmt.query_map([], |row| {
+            let mut post = Post::new(
+                &row.get::<_, String>(1)?,
+                &row.get::<_, String>(2)?,
+                &row.get::<_, String>(3)?,
+            );
+            post.set_id(row.get(0)?);
+            Ok(post)
         })?;
-        let posts: Result<Vec<_>, _> = posts.collect();
-        Ok(posts?)
+        
+        let mut posts = Vec::new();
+        for post in rows {
+            posts.push(post?);
+        }
+        Ok(posts)
     }
-}
 
-impl Clone for BlogDb {
-    fn clone(&self) -> Self {
-        BlogDb {
-            pool: self.pool.clone(),
+    pub fn update_post(&self, id: i64, post: &Post) -> Result<()> {
+        let conn = self.pool.get()?;
+        let rows_affected = conn.execute(
+            "UPDATE posts SET title = ?1, body = ?2, image_url = ?3 WHERE id = ?4",
+            [post.title(), post.body(), post.image_url(), &id.to_string()],
+        )?;
+        
+        if rows_affected == 0 {
+            Err(anyhow!("Post not found"))
+        } else {
+            Ok(())
         }
     }
 }

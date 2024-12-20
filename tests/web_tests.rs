@@ -1,17 +1,14 @@
 use rust_blog::{BlogDb, Post, App};
 use axum::{
     body::Body,
-    http::{Request, StatusCode},
+    http::{Request, StatusCode, header},
 };
 use hyper::body::to_bytes;
-use tempfile::tempdir;
 use tower::ServiceExt;
 use anyhow::Result;
 
 async fn setup_test_app() -> Result<(App, BlogDb)> {
-    let temp_dir = tempdir()?;
-    let db_path = temp_dir.path().join("test.db");
-    let db = BlogDb::new(&db_path)?;
+    let db = BlogDb::new_temporary()?;
     
     // Create some test posts
     let post1 = Post::new(
@@ -27,12 +24,6 @@ async fn setup_test_app() -> Result<(App, BlogDb)> {
     db.create_post(&post1)?;
     db.create_post(&post2)?;
     
-    // Keep the TempDir alive
-    std::thread::spawn(move || {
-        let _dir = temp_dir;
-        std::thread::park();
-    });
-    
     let app = App::new(db.clone());
     Ok((app, db))
 }
@@ -41,28 +32,34 @@ async fn setup_test_app() -> Result<(App, BlogDb)> {
 async fn test_index_page_exists() -> Result<()> {
     let (app, _) = setup_test_app().await?;
     let app = app.router();
-    
+
+    // Test root redirects to /posts
     let response = app
+        .clone()
         .oneshot(Request::builder().uri("/").body(Body::empty())?)
         .await?;
     
+    assert_eq!(response.status(), StatusCode::SEE_OTHER);
+    assert_eq!(
+        response.headers().get(header::LOCATION).unwrap(),
+        "/posts"
+    );
+
+    // Test /posts shows the posts list
+    let response = app
+        .oneshot(Request::builder().uri("/posts").body(Body::empty())?)
+        .await?;
+
     assert_eq!(response.status(), StatusCode::OK);
-    
-    // Get response body
+
     let body = to_bytes(response.into_body()).await?;
     let body = String::from_utf8(body.to_vec())?;
-    
-    // Check if test posts are displayed
+
+    assert!(body.contains("<h1>Blog Posts</h1>"));
+    assert!(body.contains("<a href='/posts/new'>New Post</a>"));
     assert!(body.contains("Test Post 1"));
-    assert!(body.contains("Content 1"));
     assert!(body.contains("Test Post 2"));
-    assert!(body.contains("Content 2"));
-    assert!(body.contains("https://example.com/1.jpg"));
-    assert!(body.contains("https://example.com/2.jpg"));
-    
-    // Check if "New Post" link exists
-    assert!(body.contains(r#"<a href='/posts/new'>New Post</a>"#));
-    
+
     Ok(())
 }
 
@@ -103,14 +100,14 @@ async fn test_create_post_endpoint() -> Result<()> {
             Request::builder()
                 .method("POST")
                 .uri("/posts")
-                .header("content-type", "application/x-www-form-urlencoded")
+                .header(header::CONTENT_TYPE, "application/x-www-form-urlencoded")
                 .body(Body::from(form_data))?,
         )
         .await?;
     
     // Should redirect to home page
     assert_eq!(response.status(), StatusCode::SEE_OTHER);
-    assert_eq!(response.headers().get("location").unwrap(), "/");
+    assert_eq!(response.headers().get(header::LOCATION).unwrap().to_str().unwrap(), "/posts");
     
     // Verify the post was created
     let posts = db.list_posts()?;
@@ -136,7 +133,7 @@ async fn test_post_validation() -> Result<()> {
             Request::builder()
                 .method("POST")
                 .uri("/posts")
-                .header("content-type", "application/x-www-form-urlencoded")
+                .header(header::CONTENT_TYPE, "application/x-www-form-urlencoded")
                 .body(Body::from(form_data))?,
         )
         .await?;
@@ -150,7 +147,7 @@ async fn test_post_validation() -> Result<()> {
             Request::builder()
                 .method("POST")
                 .uri("/posts")
-                .header("content-type", "application/x-www-form-urlencoded")
+                .header(header::CONTENT_TYPE, "application/x-www-form-urlencoded")
                 .body(Body::from(form_data))?,
         )
         .await?;
@@ -164,7 +161,7 @@ async fn test_post_validation() -> Result<()> {
             Request::builder()
                 .method("POST")
                 .uri("/posts")
-                .header("content-type", "application/x-www-form-urlencoded")
+                .header(header::CONTENT_TYPE, "application/x-www-form-urlencoded")
                 .body(Body::from(form_data))?,
         )
         .await?;
@@ -176,14 +173,25 @@ async fn test_post_validation() -> Result<()> {
 #[tokio::test]
 async fn test_empty_index_page() -> Result<()> {
     // Create a new app with an empty database
-    let temp_dir = tempdir()?;
-    let db_path = temp_dir.path().join("test.db");
-    let db = BlogDb::new(&db_path)?;
+    let db = BlogDb::new_temporary()?;
     let app = App::new(db);
     let app = app.router();
     
+    // Test root redirects to /posts
     let response = app
+        .clone()
         .oneshot(Request::builder().uri("/").body(Body::empty())?)
+        .await?;
+    
+    assert_eq!(response.status(), StatusCode::SEE_OTHER);
+    assert_eq!(
+        response.headers().get(header::LOCATION).unwrap(),
+        "/posts"
+    );
+
+    // Test /posts shows empty list
+    let response = app
+        .oneshot(Request::builder().uri("/posts").body(Body::empty())?)
         .await?;
     
     assert_eq!(response.status(), StatusCode::OK);
@@ -191,10 +199,9 @@ async fn test_empty_index_page() -> Result<()> {
     let body = to_bytes(response.into_body()).await?;
     let body = String::from_utf8(body.to_vec())?;
     
-    // Check that we have the basic structure but no posts
     assert!(body.contains("<h1>Blog Posts</h1>"));
     assert!(body.contains("<ul></ul>"));
-    assert!(body.contains(r#"<a href='/posts/new'>New Post</a>"#));
+    assert!(body.contains("<a href='/posts/new'>New Post</a>"));
     
     Ok(())
 }
@@ -224,7 +231,7 @@ async fn test_malformed_post_data() -> Result<()> {
             Request::builder()
                 .method("POST")
                 .uri("/posts")
-                .header("content-type", "application/x-www-form-urlencoded")
+                .header(header::CONTENT_TYPE, "application/x-www-form-urlencoded")
                 .body(Body::from("not=valid&form=data"))?,
         )
         .await?;
@@ -246,22 +253,22 @@ async fn test_html_escaping() -> Result<()> {
             Request::builder()
                 .method("POST")
                 .uri("/posts")
-                .header("content-type", "application/x-www-form-urlencoded")
+                .header(header::CONTENT_TYPE, "application/x-www-form-urlencoded")
                 .body(Body::from(form_data))?,
         )
         .await?;
     
     assert_eq!(response.status(), StatusCode::SEE_OTHER);
     
-    // Verify the post was created and HTML is escaped
+    // Verify the post was created with raw HTML
     let posts = db.list_posts()?;
-    let post = posts.iter().find(|p| p.title().contains("script")).unwrap();
-    assert!(post.title().contains("&lt;script&gt;"));
-    assert!(post.body().contains("&lt;p&gt;"));
+    let post = posts.iter().find(|p| p.title().contains("<script>")).unwrap();
+    assert_eq!(post.title(), "<script>alert('xss')</script>");
+    assert_eq!(post.body(), "<p>html content</p>");
     
-    // Check the index page
+    // Check the index page has escaped HTML
     let response = app
-        .oneshot(Request::builder().uri("/").body(Body::empty())?)
+        .oneshot(Request::builder().uri("/posts").body(Body::empty())?)
         .await?;
     
     let body = to_bytes(response.into_body()).await?;
@@ -303,7 +310,7 @@ async fn test_show_post() -> Result<()> {
     assert!(body.contains("https://example.com/test.jpg"));
     
     // Check navigation elements
-    assert!(body.contains(r#"<a href="/">Back to Posts</a>"#));
+    assert!(body.contains(r#"<a href="/posts">Back to Posts</a>"#));
     
     Ok(())
 }
@@ -314,7 +321,7 @@ async fn test_show_nonexistent_post() -> Result<()> {
     let app = app.router();
 
     // Try to view a post that doesn't exist
-    let response = app
+    let response = app.clone()
         .oneshot(Request::builder().uri("/posts/999").body(Body::empty())?)
         .await?;
 
@@ -333,5 +340,353 @@ async fn test_show_post_invalid_id() -> Result<()> {
         .await?;
 
     assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_edit_post_form() -> Result<()> {
+    let (app, db) = setup_test_app().await?;
+    let app = app.router();
+
+    // Create a test post
+    let post = Post::new(
+        "Original Title",
+        "Original content",
+        "https://example.com/original.jpg",
+    );
+    let post_id = db.create_post(&post)?;
+
+    // Get the edit form
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri(format!("/posts/{}/edit", post_id))
+                .body(Body::empty())?,
+        )
+        .await?;
+
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = to_bytes(response.into_body()).await?;
+    let body = String::from_utf8(body.to_vec())?;
+
+    println!("Actual HTML: {}", body);  // Add this line for debugging
+
+    // Check form contains current values
+    assert!(body.contains("Original Title"));
+    assert!(body.contains("Original content"));
+    assert!(body.contains("https://example.com/original.jpg"));
+    assert!(body.contains(format!("action=\"/posts/{}\"", post_id).as_str()));
+    assert!(body.contains("method=\"POST\""));
+    assert!(body.contains("onsubmit=\"this._method.value='PUT'\""));
+    assert!(body.contains(r#"<input type="hidden" name="_method" value="PUT">"#));
+    
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_update_post() -> Result<()> {
+    let (app, db) = setup_test_app().await?;
+    let app = app.router();
+
+    // Create a test post
+    let post = Post::new(
+        "Original Title",
+        "Original content",
+        "https://example.com/original.jpg",
+    );
+    let post_id = db.create_post(&post)?;
+
+    // Submit the edit form
+    let response = app.clone()
+        .oneshot(
+            Request::builder()
+                .method("PUT")
+                .uri(format!("/posts/{}", post_id))
+                .header(header::CONTENT_TYPE, "application/x-www-form-urlencoded")
+                .body(Body::from(
+                    "title=Updated+Title&body=Updated+content&image_url=https://example.com/updated.jpg"
+                ))?,
+        )
+        .await?;
+
+    assert_eq!(response.status(), StatusCode::SEE_OTHER);
+    assert_eq!(
+        response.headers().get(header::LOCATION).unwrap().to_str().unwrap(),
+        format!("/posts/{}", post_id)
+    );
+
+    // Verify the update
+    let updated_post = db.get_post(post_id)?;
+    assert_eq!(updated_post.title(), "Updated Title");
+    assert_eq!(updated_post.body(), "Updated content");
+    assert_eq!(updated_post.image_url(), "https://example.com/updated.jpg");
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_edit_nonexistent_post() -> Result<()> {
+    let (app, _) = setup_test_app().await?;
+    let app = app.router();
+
+    // Try to get edit form for non-existent post
+    let response = app.clone()
+        .oneshot(Request::builder().uri("/posts/999/edit").body(Body::empty())?)
+        .await?;
+
+    assert_eq!(response.status(), StatusCode::NOT_FOUND);
+
+    // Try to update non-existent post
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method("PUT")
+                .uri("/posts/999")
+                .header(header::CONTENT_TYPE, "application/x-www-form-urlencoded")
+                .body(Body::from(
+                    "title=Title&body=Content&image_url=https://example.com/image.jpg"
+                ))?,
+        )
+        .await?;
+
+    assert_eq!(response.status(), StatusCode::NOT_FOUND);
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_update_post_validation() -> Result<()> {
+    let (app, db) = setup_test_app().await?;
+    let app = app.router();
+
+    // Create a test post
+    let post = Post::new(
+        "Original Title",
+        "Original content",
+        "https://example.com/original.jpg",
+    );
+    let post_id = db.create_post(&post)?;
+
+    // Test empty title
+    let response = app.clone()
+        .oneshot(
+            Request::builder()
+                .method("PUT")
+                .uri(format!("/posts/{}", post_id))
+                .header(header::CONTENT_TYPE, "application/x-www-form-urlencoded")
+                .body(Body::from(
+                    "title=&body=Content&image_url=https://example.com/image.jpg"
+                ))?,
+        )
+        .await?;
+
+    assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
+
+    // Test invalid image URL
+    let response = app.clone()
+        .oneshot(
+            Request::builder()
+                .method("PUT")
+                .uri(format!("/posts/{}", post_id))
+                .header(header::CONTENT_TYPE, "application/x-www-form-urlencoded")
+                .body(Body::from(
+                    "title=Title&body=Content&image_url=not-a-url"
+                ))?,
+        )
+        .await?;
+
+    assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_update_post_sanitizes_urls() -> Result<()> {
+    let (app, db) = setup_test_app().await?;
+    let app = app.router();
+
+    // Create a post first
+    let post = Post::new(
+        "Original Title",
+        "Original Body",
+        "https://example.com/image.jpg",
+    );
+    let post_id = db.create_post(&post)?;
+
+    // Try to update with dangerous content
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method("PUT")
+                .uri(format!("/posts/{}", post_id))
+                .header(header::CONTENT_TYPE, "application/x-www-form-urlencoded")
+                .body(Body::from(format!(
+                    "title=<script>alert(1)</script>&body=<img src='javascript:alert(1)'>&image_url=javascript:alert(1)"
+                )))?,
+        )
+        .await?;
+
+    assert_eq!(response.status(), StatusCode::SEE_OTHER);
+
+    // Verify the post was updated with sanitized content
+    let updated = db.get_post(post_id)?;
+    assert!(!updated.title().contains("javascript:"));
+    assert!(!updated.body().contains("javascript:"));
+    assert!(!updated.image_url().contains("javascript:"));
+    assert!(updated.image_url().contains("#alert(1)"));
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_posts_list() -> Result<()> {
+    let (app, db) = setup_test_app().await?;
+    let app = app.router();
+
+    // Create some test posts in a specific order
+    let posts = vec![
+        Post::new(
+            "First Post",
+            "First post content",
+            "https://example.com/first.jpg",
+        ),
+        Post::new(
+            "Second Post",
+            "Second post content",
+            "https://example.com/second.jpg",
+        ),
+        Post::new(
+            "Third Post",
+            "Third post content",
+            "https://example.com/third.jpg",
+        ),
+    ];
+
+    // Insert posts and collect their IDs
+    let mut post_ids = Vec::new();
+    for post in posts {
+        let id = db.create_post(&post)?;
+        post_ids.push(id);
+    }
+
+    // Test /posts shows all posts
+    let response = app
+        .oneshot(Request::builder().uri("/posts").body(Body::empty())?)
+        .await?;
+
+    assert_eq!(response.status(), StatusCode::OK);
+
+    let body = to_bytes(response.into_body()).await?;
+    let body = String::from_utf8(body.to_vec())?;
+
+    // Check page structure
+    assert!(body.contains("<html>"));
+    assert!(body.contains("<body>"));
+    assert!(body.contains("<h1>Blog Posts</h1>"));
+    assert!(body.contains("<ul>"));
+    assert!(body.contains("</ul>"));
+    assert!(body.contains("<a href='/posts/new'>New Post</a>"));
+
+    // Check each post is displayed with correct content and links
+    for (i, id) in post_ids.iter().enumerate() {
+        let post_num = i + 1;
+        assert!(body.contains(&format!(r#"<li id='post-{}'"#, id)));
+        assert!(body.contains(&format!(r#"<a href='/posts/{}'"#, id)));
+        assert!(body.contains(&format!("{} Post", match post_num {
+            1 => "First",
+            2 => "Second",
+            3 => "Third",
+            _ => unreachable!(),
+        })));
+        assert!(body.contains(&format!("{} post content", match post_num {
+            1 => "First",
+            2 => "Second",
+            3 => "Third",
+            _ => unreachable!(),
+        })));
+        assert!(body.contains(&format!("https://example.com/{}.jpg", match post_num {
+            1 => "first",
+            2 => "second",
+            3 => "third",
+            _ => unreachable!(),
+        })));
+    }
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_posts_list_html_safety() -> Result<()> {
+    let (app, db) = setup_test_app().await?;
+    let app = app.router();
+
+    // Test various XSS vectors
+    let dangerous_posts = vec![
+        // Test 1: Basic script injection and event handlers
+        Post::new(
+            "<script>alert(1)</script>",
+            "<img src=x onerror=alert(1)>",
+            "javascript:alert(1)",
+        ),
+        // Test 2: Mixed quotes and embedded JavaScript
+        Post::new(
+            "\"onclick='alert(2)'><button>Click",
+            "<div style=\"background:url('javascript:alert(2)')\">",
+            "data:text/html,<script>alert(2)</script>",
+        ),
+        // Test 3: Base64 and protocol variations
+        Post::new(
+            "<script src='data:,alert(3)'></script>",
+            "<iframe src='vbscript:alert(3)'>",
+            "data:image/svg+xml;base64,PHN2Zy9vbmxvYWQ9YWxlcnQoMyk+",
+        ),
+    ];
+
+    // Create all test posts
+    for post in dangerous_posts {
+        db.create_post(&post)?;
+    }
+
+    // Test /posts escapes HTML
+    let response = app
+        .oneshot(Request::builder().uri("/posts").body(Body::empty())?)
+        .await?;
+
+    assert_eq!(response.status(), StatusCode::OK);
+
+    let body = to_bytes(response.into_body()).await?;
+    let body = String::from_utf8(body.to_vec())?;
+
+    // Print the actual body for debugging
+    println!("Actual body content: {}", body);
+
+    // 1. Verify dangerous content is properly escaped
+    assert!(body.contains("&lt;script&gt;"));
+    assert!(body.contains("&lt;img"));
+    assert!(body.contains("&lt;iframe"));
+
+    // 2. Verify no unescaped dangerous elements
+    assert!(!body.contains("<script>"));
+    assert!(!body.contains("<iframe>"));
+    
+    // 3. Verify dangerous URLs are sanitized
+    assert!(body.contains("#alert"));          // URLs are sanitized
+    assert!(!body.contains("javascript:"));    // No javascript: URLs
+    assert!(!body.contains("data:"));         // No data: URLs
+    assert!(!body.contains("vbscript:"));     // No vbscript: URLs
+
+    // 4. Verify all dangerous URLs are replaced with #
+    assert!(body.matches("src=\"#\"").count() == 3);  // All dangerous URLs should be replaced
+
+    // 5. Verify safe URLs are preserved
+    assert!(body.contains("https://example.com/1.jpg"));
+    assert!(body.contains("https://example.com/2.jpg"));
+
+    // 6. Verify structure is maintained
+    assert!(body.contains("<ul>"));
+    assert!(body.contains("</ul>"));
+    assert!(body.contains("<img"));            // We have img tags
+    assert!(body.contains("width='200'"));     // With proper attributes
+    assert!(body.contains("alt=\"Post image\""));  // And alt text
+
     Ok(())
 }

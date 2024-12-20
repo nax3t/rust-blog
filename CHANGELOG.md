@@ -29,8 +29,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Validate post ID format with 400 response
   - Links to individual posts from index page
   - Back to Posts navigation
+- Post editing feature with RESTful PUT endpoint
+  - Edit form with HTML escaping and URL sanitization
+  - Method override support for HTML forms
+  - Comprehensive test coverage including validation and XSS prevention
 
 ### Changed
+- Enhanced routing to follow RESTful conventions
 - Added proper form validation with UNPROCESSABLE_ENTITY status codes
 - Added Post ID getter and usage in HTML output
 - Fixed compiler warnings for unused imports and fields
@@ -42,9 +47,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - Corrected status code expectations for malformed content types
-- Fixed double HTML escaping in index page rendering
-- Removed unused imports across multiple files
-- Fixed type compatibility issues with Axum 0.6
 
 ## [0.1.0] - 2024-12-19
 ### Added
