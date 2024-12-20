@@ -32,27 +32,37 @@ cargo run
 
 2. The server will start at `http://localhost:3000`
 
-## Creating Your First Post
-
-1. Open your web browser and navigate to `http://localhost:3000`
-2. Click the "New Post" link
-3. Fill out the form with:
-   - Title: Your post title
-   - Content: Your post content
-   - Image URL: A valid URL to an image
-4. Click "Create Post"
-
 ## Basic Usage
 
 ### Viewing Posts
 - Visit the homepage at `http://localhost:3000` to see all posts
+- Click on a post title to view its full content
 - Posts are displayed in reverse chronological order (newest first)
 
 ### Creating Posts
-- Click "New Post" from any page
-- All fields (title, content, image URL) are required
-- Image URLs must be valid URLs
-- HTML in posts is automatically escaped for security
+1. Click "New Post" on the homepage
+2. Fill out the form:
+   - Title: Your post title
+   - Content: Your post content
+   - Image URL: A valid URL to an image
+3. Click "Create Post"
+
+### Editing Posts
+1. View the post you want to edit
+2. Click "Edit" below the post
+3. Update the form fields:
+   - Title: Update the post title
+   - Content: Modify the post content
+   - Image URL: Change the image URL
+4. Click "Update Post"
+
+## Security Features
+
+The blog automatically:
+- Escapes HTML in post content
+- Sanitizes URLs to prevent dangerous protocols
+- Validates all form inputs
+- Handles form submissions securely
 
 ## Next Steps
 

@@ -10,7 +10,7 @@ The Rust Blog uses SQLite as its database engine. The database file is created a
 
 ### posts
 
-The main table storing blog posts.
+The main table storing blog posts. Posts can be created, read, updated, and deleted through the web interface.
 
 ```sql
 CREATE TABLE posts (
@@ -29,6 +29,42 @@ CREATE TABLE posts (
 | title     | TEXT    | NOT NULL        | The title of the blog post     |
 | body      | TEXT    | NOT NULL        | The content of the blog post   |
 | image_url | TEXT    | NOT NULL        | URL to the post's image        |
+
+## Operations
+
+### Create
+- Insert new posts with title, body, and image URL
+- Auto-generates an ID for each new post
+
+```sql
+INSERT INTO posts (title, body, image_url) VALUES (?1, ?2, ?3)
+```
+
+### Read
+- Retrieve posts by ID
+- List all posts ordered by ID descending
+
+```sql
+-- Get single post
+SELECT id, title, body, image_url FROM posts WHERE id = ?1
+
+-- List all posts (newest first)
+SELECT id, title, body, image_url FROM posts ORDER BY id DESC
+```
+
+### Update
+- Modify existing posts by ID
+- All fields (title, body, image_url) can be updated
+- URL sanitization is applied to all fields
+
+```sql
+UPDATE posts SET title = ?1, body = ?2, image_url = ?3 WHERE id = ?4
+```
+
+### Future Enhancements
+- Delete operation not yet implemented
+- Additional indexes for performance
+- Support for post categories and tags
 
 ## Indexes
 
@@ -53,21 +89,12 @@ pub struct BlogDb {
 }
 ```
 
-### CRUD Operations
+### Security Measures
 
-#### Create
-```sql
-INSERT INTO posts (title, body, image_url) VALUES (?1, ?2, ?3)
-```
-
-#### Read
-```sql
--- Get single post
-SELECT id, title, body, image_url FROM posts WHERE id = ?1
-
--- List all posts (newest first)
-SELECT id, title, body, image_url FROM posts ORDER BY id DESC
-```
+- Input validation before database operations
+- HTML escaping on output
+- URL sanitization for dangerous protocols
+- Proper SQL parameter binding to prevent injection
 
 ## Data Validation
 

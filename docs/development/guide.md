@@ -24,11 +24,15 @@ rust-blog/
 │   ├── lib.rs      # Core functionality
 │   │   ├── Post struct and implementations
 │   │   ├── BlogDb database operations
-│   │   └── App web handlers
+│   │   └── App web handlers and routing
 │   └── main.rs     # Server setup
 ├── tests/
 │   ├── blog_tests.rs   # Database tests
 │   └── web_tests.rs    # Web endpoint tests
+├── docs/           # Documentation
+│   ├── api/        # API documentation
+│   ├── guides/     # User guides
+│   └── development/# Developer guides
 ├── Cargo.toml      # Dependencies
 ├── Cargo.lock      # Locked dependencies
 └── blog.db         # SQLite database
@@ -48,15 +52,18 @@ pub struct Post {
 ```
 
 ### Database Operations
+The `BlogDb` struct provides database operations:
 - Connection pooling with r2d2
-- CRUD operations in BlogDb struct
-- SQLite backend with rusqlite
+- Create: Insert new posts
+- Read: Get post by ID or list all
+- Update: Modify existing posts
 
 ### Web Handlers
-- Built with Axum framework
-- Form handling and validation
-- HTML templating
-- XSS prevention
+The `App` struct manages web routes:
+- RESTful routing with proper HTTP methods
+- Form handling with validation
+- Method override for PUT requests
+- Security middleware for XSS prevention
 
 ## Testing
 
@@ -65,33 +72,51 @@ pub struct Post {
 # Run all tests
 cargo test
 
-# Run specific test file
-cargo test --test blog_tests
-cargo test --test web_tests
-
 # Run specific test
-cargo test test_create_post
+cargo test test_name
+
+# Run with output
+cargo test -- --nocapture
 ```
 
-### Test Categories
-1. **Database Tests** (`blog_tests.rs`)
-   - Post creation and retrieval
-   - Database error handling
-   - Post ordering
-   - Empty database handling
+### Test Organization
+- `blog_tests.rs`: Database operation tests
+- `web_tests.rs`: HTTP endpoint tests
+  - Form submission
+  - Content validation
+  - Error handling
+  - Security features
 
-2. **Web Tests** (`web_tests.rs`)
-   - Route testing
-   - Form submission
-   - Error handling
-   - XSS prevention
-   - Content type validation
+## Security Considerations
 
-### Writing Tests
-- Use `tempfile` for temporary test databases
-- Follow the existing test structure
-- Include both success and failure cases
-- Test edge cases and error conditions
+### XSS Prevention
+- HTML escaping on all output
+- URL sanitization for dangerous protocols
+- Input validation on all forms
+
+### Method Override
+- PUT requests via POST with _method parameter
+- Secure handling of method override
+- Form validation and sanitization
+
+### Database Security
+- Connection pooling for safe concurrent access
+- Parameter binding to prevent SQL injection
+- Input validation before database operations
+
+## Contributing
+
+### Pull Request Guidelines
+1. Write tests for new features
+2. Update documentation
+3. Follow Rust formatting guidelines
+4. Add entries to CHANGELOG.md
+
+### Code Style
+- Use `cargo fmt` for formatting
+- Follow Rust naming conventions
+- Document public interfaces
+- Write meaningful commit messages
 
 ## Common Development Tasks
 

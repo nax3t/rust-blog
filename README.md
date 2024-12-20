@@ -4,9 +4,10 @@ A secure and efficient blog engine written in Rust, featuring a SQLite backend a
 
 ## Features
 
-- **Secure Content Handling**: Built-in XSS prevention with HTML escaping
+- **Secure Content Handling**: Built-in XSS prevention with HTML escaping and URL sanitization
 - **Database Integration**: SQLite backend with connection pooling
 - **Modern Web Framework**: Built with Axum for efficient request handling
+- **RESTful Architecture**: Proper HTTP methods including PUT for updates
 - **Comprehensive Testing**: Full test suite covering database operations and web endpoints
 - **Form Validation**: Robust input validation and error handling
 - **Image Support**: Support for blog posts with images via URLs
@@ -49,7 +50,17 @@ The server will start at `http://localhost:3000`
 
 - `GET /`: View all blog posts
 - `GET /posts/new`: Create a new post form
-- `POST /posts`: Submit a new blog post
+- `POST /posts`: Create a new post
+- `GET /posts/:id`: View a specific post
+- `GET /posts/:id/edit`: Edit post form
+- `PUT /posts/:id`: Update a post (via form method override)
+
+### Security Features
+
+- HTML escaping for XSS prevention
+- URL sanitization for dangerous protocols
+- Form validation with proper error handling
+- Method override security for PUT requests
 
 ### Project Structure
 
