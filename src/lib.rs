@@ -102,6 +102,7 @@ impl App {
             .route("/posts/:id", get(move |state, path| Self::show_post(state, path)))
             .route("/posts/:id/edit", get(move |state, path| Self::edit_post(state, path)))
             .route("/posts/:id", put(move |state, path, form| Self::update_post(state, path, form)))
+            .route("/posts/:id", post(move |state, path, form| Self::update_post(state, path, form)))
             .layer(middleware::from_fn(method_override))
             .with_state(self)
     }
@@ -223,7 +224,10 @@ impl App {
                                     <img src="{}" alt="Post image">
                                 </div>
                             </article>
-                            <p><a href="/posts">Back to Posts</a></p>
+                            <p>
+                                <a href="/posts/{}/edit">Edit Post</a> |
+                                <a href="/posts">Back to Posts</a>
+                            </p>
                         </body>
                     </html>
                     "#,
@@ -234,6 +238,7 @@ impl App {
                         .collect::<Vec<_>>()
                         .join("\n"),
                     encode_text(post.image_url()),
+                    post.id().ok_or(StatusCode::INTERNAL_SERVER_ERROR)?,
                 );
                 Ok(Html(html))
             },
@@ -250,7 +255,7 @@ impl App {
                 let html = format!(
                     r#"<html><body>
                         <h1>Edit Post</h1>
-                        <form action="/posts/{}" method="POST" onsubmit="this._method.value='PUT'">
+                        <form action="/posts/{}" method="POST">
                             <input type="hidden" name="_method" value="PUT">
                             <div>
                                 <label for="title">Title:</label><br>
@@ -381,11 +386,12 @@ impl BlogDb {
         let mut rows = stmt.query([id])?;
         
         if let Some(row) = rows.next()? {
-            let post = Post::new(
+            let mut post = Post::new(
                 &row.get::<_, String>(0)?,
                 &row.get::<_, String>(1)?,
                 &row.get::<_, String>(2)?,
             );
+            post.set_id(id);
             Ok(post)
         } else {
             Err(anyhow!("Post not found"))

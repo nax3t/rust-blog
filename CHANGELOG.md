@@ -33,6 +33,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Edit form with HTML escaping and URL sanitization
   - Method override support for HTML forms
   - Comprehensive test coverage including validation and XSS prevention
+- Edit button in show post view
+- Method override middleware for handling PUT requests from HTML forms
 
 ### Changed
 - Enhanced routing to follow RESTful conventions
@@ -44,9 +46,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed HTML escaping implementation in index handler
 - Enhanced project documentation structure and organization
 - Improved post list view with clickable titles
+- Improved post ID handling in database operations
+- Simplified form submission by removing redundant JavaScript
+- Added proper HTML escaping in form values
 
 ### Fixed
 - Corrected status code expectations for malformed content types
+- Fixed 405 error when submitting edit form by adding POST route that transforms to PUT
 
 ## [0.1.0] - 2024-12-19
 ### Added

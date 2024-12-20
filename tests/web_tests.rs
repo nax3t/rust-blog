@@ -345,10 +345,10 @@ async fn test_show_post_invalid_id() -> Result<()> {
 
 #[tokio::test]
 async fn test_edit_post_form() -> Result<()> {
-    let (app, db) = setup_test_app().await?;
-    let app = app.router();
+    let db = BlogDb::new_temporary()?;
+    let app = App::new(db.clone()).router();
 
-    // Create a test post
+    // Create a post first
     let post = Post::new(
         "Original Title",
         "Original content",
@@ -369,17 +369,20 @@ async fn test_edit_post_form() -> Result<()> {
     let body = to_bytes(response.into_body()).await?;
     let body = String::from_utf8(body.to_vec())?;
 
-    println!("Actual HTML: {}", body);  // Add this line for debugging
+    println!("Actual HTML: {}", body);
 
-    // Check form contains current values
-    assert!(body.contains("Original Title"));
-    assert!(body.contains("Original content"));
-    assert!(body.contains("https://example.com/original.jpg"));
-    assert!(body.contains(format!("action=\"/posts/{}\"", post_id).as_str()));
-    assert!(body.contains("method=\"POST\""));
-    assert!(body.contains("onsubmit=\"this._method.value='PUT'\""));
+    // Form should have method="POST" and hidden _method field
+    assert!(body.contains(r#"method="POST""#));
     assert!(body.contains(r#"<input type="hidden" name="_method" value="PUT">"#));
-    
+
+    // Form should have correct action URL
+    assert!(body.contains(format!(r#"action="/posts/{}""#, post_id).as_str()));
+
+    // Form should have pre-filled values
+    assert!(body.contains(r#"value="Original Title""#));
+    assert!(body.contains(r#">Original content</textarea>"#));
+    assert!(body.contains(r#"value="https://example.com/original.jpg""#));
+
     Ok(())
 }
 
@@ -578,6 +581,8 @@ async fn test_posts_list() -> Result<()> {
     let body = to_bytes(response.into_body()).await?;
     let body = String::from_utf8(body.to_vec())?;
 
+    println!("Actual body content: {}", body);
+
     // Check page structure
     assert!(body.contains("<html>"));
     assert!(body.contains("<body>"));
@@ -656,7 +661,6 @@ async fn test_posts_list_html_safety() -> Result<()> {
     let body = to_bytes(response.into_body()).await?;
     let body = String::from_utf8(body.to_vec())?;
 
-    // Print the actual body for debugging
     println!("Actual body content: {}", body);
 
     // 1. Verify dangerous content is properly escaped
@@ -687,6 +691,78 @@ async fn test_posts_list_html_safety() -> Result<()> {
     assert!(body.contains("<img"));            // We have img tags
     assert!(body.contains("width='200'"));     // With proper attributes
     assert!(body.contains("alt=\"Post image\""));  // And alt text
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_show_post_has_edit_button() -> Result<()> {
+    let db = BlogDb::new_temporary()?;
+    let app = App::new(db.clone()).router();
+
+    // Create a post first with HTML content to test escaping
+    let post = Post::new(
+        "Test <script>alert('xss')</script>",
+        "Test content",
+        "https://example.com/image.jpg",
+    );
+    let post_id = db.create_post(&post)?;
+
+    // Get the show post page
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri(format!("/posts/{}", post_id))
+                .body(Body::empty())?,
+        )
+        .await?;
+
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = to_bytes(response.into_body()).await?;
+    let body = String::from_utf8(body.to_vec())?;
+
+    // Check for edit button/link
+    assert!(body.contains(format!("/posts/{}/edit", post_id).as_str()));
+    assert!(body.contains("Edit Post"));
+
+    // The edit link should be properly escaped
+    assert!(!body.contains("<script>"));
+    assert!(body.contains("&lt;script&gt;"));
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_edit_form_has_method_override() -> Result<()> {
+    let db = BlogDb::new_temporary()?;
+    let app = App::new(db.clone()).router();
+
+    // Create a post first
+    let post = Post::new(
+        "Test Title",
+        "Test content",
+        "https://example.com/image.jpg",
+    );
+    let post_id = db.create_post(&post)?;
+
+    // Get the edit form
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri(format!("/posts/{}/edit", post_id))
+                .body(Body::empty())?,
+        )
+        .await?;
+
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = to_bytes(response.into_body()).await?;
+    let body = String::from_utf8(body.to_vec())?;
+
+    // Form should have a hidden _method field
+    assert!(body.contains(r#"<input type="hidden" name="_method" value="PUT">"#));
+    
+    // Form action should be the correct endpoint
+    assert!(body.contains(format!(r#"action="/posts/{}""#, post_id).as_str()));
 
     Ok(())
 }
