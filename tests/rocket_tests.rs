@@ -50,3 +50,43 @@ fn test_posts_list() {
     assert!(body.contains("Content of first post"));
     assert!(body.contains("Content of second post"));
 }
+
+#[test]
+fn test_show_post() {
+    let (client, db) = setup_client();
+    
+    // Create a test post
+    let post = rust_blog::Post::new(
+        "Test Post",
+        "This is the post content.\nIt has multiple lines.",
+        "https://example.com/image.jpg",
+    );
+    let post_id = db.create_post(&post).expect("Failed to create post");
+    
+    let response = client.get(format!("/posts/{}", post_id)).dispatch();
+    assert_eq!(response.status(), Status::Ok);
+    
+    let body = response.into_string().unwrap();
+    
+    assert!(body.contains("Test Post")); // Title
+    assert!(body.contains("This is the post content.")); // Content
+    assert!(body.contains("https:&#x2F;&#x2F;example.com&#x2F;image.jpg")); // Image URL
+    assert!(body.contains("Edit")); // Edit button
+    assert!(body.contains("Delete")); // Delete button
+}
+
+#[test]
+fn test_show_nonexistent_post() {
+    let (client, _db) = setup_client();
+    
+    let response = client.get("/posts/999").dispatch();
+    assert_eq!(response.status(), Status::NotFound);
+}
+
+#[test]
+fn test_show_post_invalid_id() {
+    let (client, _db) = setup_client();
+    
+    let response = client.get("/posts/invalid").dispatch();
+    assert_eq!(response.status(), Status::NotFound);
+}

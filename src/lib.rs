@@ -38,10 +38,10 @@ async fn method_override<B>(
 
 #[derive(Debug, Clone, Serialize)]
 pub struct Post {
-    id: Option<i64>,
-    title: String,
-    body: String,
-    image_url: String,
+    pub id: Option<i64>,
+    pub title: String,
+    pub body: String,
+    pub image_url: String,
 }
 
 impl Post {

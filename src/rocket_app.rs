@@ -1,5 +1,5 @@
 use rocket::*;
-use rocket::response::Redirect;
+use rocket::response::{Redirect, status::NotFound};
 use rocket_dyn_templates::{Template, context};
 use crate::BlogDb;
 use std::sync::Arc;
@@ -35,10 +35,32 @@ async fn posts(state: &State<RocketState>) -> Template {
     })
 }
 
-/// Configure and build Rocket
-pub fn rocket(db: BlogDb) -> Rocket<Build> {
+/// Show a single post
+#[get("/posts/<id>")]
+async fn show_post(id: i64, state: &State<RocketState>) -> Result<Template, NotFound<String>> {
+    match state.db.get_post(id) {
+        Ok(post) => {
+            let title = post.title.clone();
+            Ok(Template::render("posts/show", context! {
+                title: title,
+                post: post
+            }))
+        },
+        Err(_) => Err(NotFound("Post not found".to_string()))
+    }
+}
+
+/// Handle invalid IDs by returning 404
+#[catch(422)]
+fn unprocessable_entity(_req: &Request) -> NotFound<String> {
+    NotFound("Post not found".to_string())
+}
+
+/// Build the Rocket instance
+pub fn rocket(db: BlogDb) -> rocket::Rocket<rocket::Build> {
     rocket::build()
-        .mount("/", routes![index, posts])
+        .mount("/", routes![index, posts, show_post])
+        .register("/", catchers![unprocessable_entity])
         .manage(RocketState::new(db))
         .attach(Template::fairing())
 }
