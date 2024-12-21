@@ -1,0 +1,98 @@
+{% extends "base" %}
+
+{% block title %}Create New Post - Rust Blog{% endblock %}
+
+{% block content %}
+<div class="form-container">
+    <h2>Create New Post</h2>
+
+    {% if error %}
+    <div class="error">
+        {{ error }}
+    </div>
+    {% endif %}
+
+    <form action="/posts" method="POST">
+        <div class="form-group">
+            <label for="title">Title</label>
+            <input type="text" id="title" name="title" value="{{ form.title | default(value="") }}" required>
+        </div>
+
+        <div class="form-group">
+            <label for="body">Content</label>
+            <textarea id="body" name="body" rows="10" required>{{ form.body | default(value="") }}</textarea>
+        </div>
+
+        <div class="form-group">
+            <label for="image_url">Image URL</label>
+            <input type="url" id="image_url" name="image_url" value="{{ form.image_url | default(value="") }}" required>
+            <small>Must be a valid URL starting with http:// or https://</small>
+        </div>
+
+        <div class="form-actions">
+            <a href="/posts" class="button secondary">&larr; Back</a>
+            <button type="submit" class="button primary">Create Post</button>
+        </div>
+    </form>
+</div>
+
+<style>
+    .form-container {
+        max-width: 600px;
+        margin: 0 auto;
+    }
+    .form-group {
+        margin-bottom: 1rem;
+    }
+    .form-group label {
+        display: block;
+        margin-bottom: 0.5rem;
+        font-weight: bold;
+    }
+    .form-group input,
+    .form-group textarea {
+        width: 100%;
+        padding: 0.5rem;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        font-family: inherit;
+        font-size: inherit;
+    }
+    .form-group small {
+        display: block;
+        margin-top: 0.25rem;
+        color: #666;
+    }
+    .form-actions {
+        margin-top: 2rem;
+        display: flex;
+        gap: 1rem;
+        justify-content: flex-start;
+    }
+    .button {
+        display: inline-block;
+        padding: 0.5rem 1rem;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        text-decoration: none;
+        font-size: inherit;
+    }
+    .button.primary {
+        background: #007bff;
+        color: white;
+    }
+    .button.secondary {
+        background: #6c757d;
+        color: white;
+    }
+    .error {
+        padding: 1rem;
+        margin-bottom: 1rem;
+        background: #f8d7da;
+        border: 1px solid #f5c6cb;
+        border-radius: 4px;
+        color: #721c24;
+    }
+</style>
+{% endblock %}

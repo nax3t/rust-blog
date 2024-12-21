@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Migration from Axum to Rocket web framework
 - Restructuring to MVC architecture
 - Moving templates to Tera template engine
+- Create new post functionality with form validation
+- Form validation error handling and display
+- Support for image URL validation in new posts
+
+### Fixed
+- Route ordering issue where `/posts/new` was being caught by `/posts/<id>`
+- Invalid post ID handling to return 404 instead of 422
+- Form field validation in tests to match actual HTML structure
 
 ## [0.2.0] - Unreleased
 ### Added
