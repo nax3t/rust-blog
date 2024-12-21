@@ -249,3 +249,106 @@ fn test_edit_nonexistent_post() {
         .dispatch();
     assert_eq!(response.status(), Status::NotFound);
 }
+
+#[test]
+fn test_delete_post() {
+    let (client, db) = setup_client();
+    
+    // Create a test post
+    let post = rust_blog::Post::new(
+        "Test Post",
+        "Test Content",
+        "https://example.com/image.jpg"
+    );
+    let id = db.create_post(&post).unwrap();
+    
+    // Verify post exists
+    assert!(db.get_post(id).is_ok());
+    
+    // Send delete request
+    let response = client.delete(format!("/posts/{}", id)).dispatch();
+    assert_eq!(response.status(), Status::SeeOther);
+    
+    // Verify redirect to posts index
+    let location = response.headers().get_one("Location").expect("No redirect location");
+    assert_eq!(location, "/posts");
+    
+    // Verify post is deleted
+    assert!(db.get_post(id).is_err());
+}
+
+#[test]
+fn test_delete_nonexistent_post() {
+    let (client, _db) = setup_client();
+    
+    let response = client.delete("/posts/999").dispatch();
+    assert_eq!(response.status(), Status::NotFound);
+}
+
+#[test]
+fn test_delete_post_invalid_id() {
+    let (client, _db) = setup_client();
+    
+    let response = client.delete("/posts/invalid").dispatch();
+    assert_eq!(response.status(), Status::NotFound);
+}
+
+#[test]
+fn test_show_post_has_delete_form() {
+    let (client, db) = setup_client();
+    
+    // Create a test post
+    let post = rust_blog::Post::new(
+        "Test Post",
+        "Test Content",
+        "https://example.com/image.jpg"
+    );
+    let id = db.create_post(&post).unwrap();
+    
+    let response = client.get(format!("/posts/{}", id)).dispatch();
+    assert_eq!(response.status(), Status::Ok);
+    
+    let body = response.into_string().unwrap();
+    
+    // Check for delete form
+    assert!(body.contains(&format!(r#"<form action="/posts/{}" method="POST" style="display: inline;">"#, id)));
+    assert!(body.contains(r#"<input type="hidden" name="_method" value="DELETE">"#));
+    assert!(body.contains(r#"<button type="submit" onclick="return confirm('Are you sure you want to delete this post?')" class="button danger">Delete</button>"#));
+}
+
+#[test]
+fn test_post_id_autoincrement() {
+    let (client, db) = setup_client();
+    
+    // Create first post
+    let post1 = rust_blog::Post::new(
+        "First Post",
+        "Content",
+        "https://example.com/1.jpg"
+    );
+    let id1 = db.create_post(&post1).unwrap();
+    
+    // Create second post
+    let post2 = rust_blog::Post::new(
+        "Second Post",
+        "Content",
+        "https://example.com/2.jpg"
+    );
+    let id2 = db.create_post(&post2).unwrap();
+    
+    // Delete first post
+    db.delete_post(id1).unwrap();
+    
+    // Create third post
+    let post3 = rust_blog::Post::new(
+        "Third Post",
+        "Content",
+        "https://example.com/3.jpg"
+    );
+    let id3 = db.create_post(&post3).unwrap();
+    
+    // Verify IDs are sequential and don't reuse deleted ID
+    assert_eq!(id1, 1);
+    assert_eq!(id2, 2);
+    assert_eq!(id3, 3); // Should be 3, not 1
+}

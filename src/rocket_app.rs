@@ -1,4 +1,4 @@
-use rocket::{self, get, post, uri, Request, State, catch, routes, catchers};
+use rocket::{self, get, post, uri, Request, State, catch, routes, catchers, delete};
 use rocket::response::{Redirect, status::{NotFound, Custom}};
 use rocket::form::{Form, FromForm};
 use rocket::http::Status;
@@ -174,6 +174,18 @@ async fn update_post(id_str: &str, form: Form<PostForm>, state: &State<RocketSta
     }
 }
 
+/// Delete a post
+#[delete("/posts/<id_str>")]
+async fn delete_post(id_str: &str, state: &State<RocketState>) -> Result<Redirect, NotFound<String>> {
+    match id_str.parse::<i64>() {
+        Ok(id) => match state.db.delete_post(id) {
+            Ok(_) => Ok(Redirect::to(uri!(posts))),
+            Err(_) => Err(NotFound("Post not found".to_string()))
+        },
+        Err(_) => Err(NotFound("Post not found".to_string()))
+    }
+}
+
 /// Handle invalid form data
 #[catch(422)]
 fn form_validation(_req: &Request) -> Custom<Template> {
@@ -204,8 +216,22 @@ fn default_catcher(_status: Status, _req: &Request) -> NotFound<String> {
 /// Build the Rocket instance
 pub fn rocket(db: BlogDb) -> rocket::Rocket<rocket::Build> {
     rocket::build()
-        .mount("/", routes![index, posts, new_post, show_post, edit_post, update_post, create_post])
-        .register("/", catchers![form_validation, not_found, internal_error, default_catcher])
+        .mount("/", routes![
+            index,
+            posts,
+            create_post,
+            new_post,
+            show_post,
+            update_post,
+            edit_post,
+            delete_post,
+        ])
         .manage(RocketState::new(db))
         .attach(Template::fairing())
+        .register("/", catchers![
+            form_validation,
+            not_found,
+            internal_error,
+            default_catcher,
+        ])
 }
