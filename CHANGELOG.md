@@ -10,9 +10,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Added routes for editing and updating posts
   - Created edit form template with validation
   - Added tests for edit functionality
-- Migration from Axum to Rocket web framework
-- Restructuring to MVC architecture
-- Moving templates to Tera template engine
 - Create new post functionality with form validation
 - Form validation error handling and display
 - Support for image URL validation in new posts
@@ -22,42 +19,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Invalid post ID handling to return 404 instead of 422
 - Form field validation in tests to match actual HTML structure
 
-## [0.2.0] - Unreleased
+## [0.2.0] - 2024-12-20
 ### Added
-- Delete functionality for blog posts
-  - Method override support for DELETE operations
-  - Confirmation dialog before deletion
-  - Proper form handling and redirection
-- Post detail view feature
-  - View single post by ID with formatted paragraphs
-  - Handle non-existent posts with 404 response
-  - Validate post ID format with 400 response
-  - Links to individual posts from index page
-  - Back to Posts navigation
-- Post editing feature with RESTful PUT endpoint
-  - Edit form with HTML escaping and URL sanitization
-  - Method override support for HTML forms
-  - Comprehensive test coverage including validation and XSS prevention
-- Edit button in show post view
-- Method override middleware for handling PUT requests from HTML forms
+- Complete migration from Axum to Rocket web framework
+  - Restructured to MVC architecture
+  - Moved templates to Tera template engine
+  - Added form validation and error handling
+  - Support for image URL validation
+- CRUD operations for blog posts
+  - Create: New post form with validation
+  - Read: Post listing and detail views
+  - Update: Edit form with validation
+  - Delete: Confirmation dialog and proper redirection
+- SQLite AUTOINCREMENT for post IDs
+  - IDs now increment sequentially like Rails
+  - Deleted post IDs are not reused
+- Comprehensive test coverage
+  - Unit tests for database operations
+  - Integration tests for web routes
+  - Validation and error handling tests
 
 ### Changed
 - Enhanced routing to follow RESTful conventions
-- Added proper form validation with UNPROCESSABLE_ENTITY status codes
-- Added Post ID getter and usage in HTML output
-- Fixed compiler warnings for unused imports and fields
-- Improved error handling for malformed form data
-- Updated test expectations for content type validation
-- Fixed HTML escaping implementation in index handler
-- Enhanced project documentation structure and organization
-- Improved post list view with clickable titles
-- Improved post ID handling in database operations
-- Simplified form submission by removing redundant JavaScript
-- Added proper HTML escaping in form values
+- Improved error handling for malformed data
+- Better HTML escaping and URL sanitization
+- Cleaner codebase structure
+- Removed all Axum-related code and dependencies
 
 ### Fixed
-- Corrected status code expectations for malformed content types
-- Fixed 405 error when submitting edit form by adding POST route that transforms to PUT
+- Route ordering for `/posts/new` and `/posts/<id>`
+- Invalid post ID handling with proper 404s
+- Form field validation in tests
+- HTML escaping implementation
 
 ## [0.1.0] - 2024-12-20
 ### Added

@@ -5,12 +5,14 @@ A secure and efficient blog engine written in Rust, featuring a SQLite backend a
 ## Features
 
 - **Secure Content Handling**: Built-in XSS prevention with HTML escaping and URL sanitization
-- **Database Integration**: SQLite backend with connection pooling
-- **Modern Web Framework**: Built with Axum for efficient request handling
-- **Complete CRUD Operations**: Create, Read, Update, and Delete blog posts with proper HTTP method handling
+- **Database Integration**: SQLite backend with connection pooling and sequential ID generation
+- **Modern Web Framework**: Built with Rocket for efficient request handling and templating
+- **Complete CRUD Operations**: Create, Read, Update, and Delete blog posts
 - **Comprehensive Testing**: Full test suite covering database operations and web endpoints
 - **Form Validation**: Robust input validation and error handling
 - **Image Support**: Support for blog posts with images via URLs
+- **Template Engine**: Dynamic HTML generation with Tera templates
+- **RESTful Routes**: Clean URL structure following REST conventions
 
 ## Documentation
 
@@ -44,41 +46,25 @@ cargo test
 ```bash
 cargo run
 ```
-The server will start at `http://localhost:3000`
+The server will start at `http://localhost:8000`
 
-### API Endpoints
+### Routes
 
-- `GET /`: View all blog posts
-- `GET /posts/new`: Create a new post form
+- `GET /`: Redirects to /posts
+- `GET /posts`: View all blog posts
+- `GET /posts/new`: New post form
 - `POST /posts`: Create a new post
 - `GET /posts/:id`: View a specific post
 - `GET /posts/:id/edit`: Edit post form
-- `PUT /posts/:id`: Update a post (via form method override)
+- `PUT /posts/:id`: Update a post
 - `DELETE /posts/:id`: Delete a post
 
-### Security Features
+### Database
 
-- HTML escaping for XSS prevention
-- URL sanitization for dangerous protocols
-- Form validation with proper error handling
-- Method override security for PUT requests
-
-### Project Structure
-
-```
-rust-blog/
-├── src/
-│   ├── lib.rs      # Core functionality and web handlers
-│   └── main.rs     # Server setup and configuration
-├── tests/
-│   ├── blog_tests.rs   # Database integration tests
-│   └── web_tests.rs    # Web endpoint tests
-├── docs/          # Comprehensive documentation
-│   ├── guides/    # User guides and tutorials
-│   ├── api/       # API and database documentation
-│   └── development/ # Developer documentation
-└── blog.db        # SQLite database (created on first run)
-```
+The blog uses SQLite with AUTOINCREMENT for post IDs, ensuring that:
+- IDs are assigned sequentially
+- Deleted post IDs are not reused
+- Each post has a unique, permanent identifier
 
 ## Contributing
 
@@ -88,10 +74,6 @@ rust-blog/
 4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
 
-For detailed development guidelines, see our [Development Guide](docs/development/guide.md).
-
-## Versioning
-This project follows [SemVer](https://semver.org/) for versioning. For the versions available, see the tags on this repository.
-
 ## License
-This project is licensed under the MIT License - see the LICENSE file for details
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
