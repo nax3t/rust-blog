@@ -14,7 +14,7 @@ The main table storing blog posts. Posts can be created, read, updated, and dele
 
 ```sql
 CREATE TABLE posts (
-    id INTEGER PRIMARY KEY,
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
     title TEXT NOT NULL,
     body TEXT NOT NULL,
     image_url TEXT NOT NULL
@@ -29,6 +29,16 @@ CREATE TABLE posts (
 | title     | TEXT    | NOT NULL        | The title of the blog post     |
 | body      | TEXT    | NOT NULL        | The content of the blog post   |
 | image_url | TEXT    | NOT NULL        | URL to the post's image        |
+
+## ID Management
+
+The `AUTOINCREMENT` keyword in SQLite has special behavior:
+- IDs are assigned sequentially
+- Deleted IDs are never reused
+- Each post gets a unique, permanent identifier
+- Similar to Rails' behavior with primary keys
+
+This is different from regular `INTEGER PRIMARY KEY` which may reuse deleted IDs.
 
 ## Operations
 

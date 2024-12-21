@@ -2,191 +2,293 @@
 
 This guide provides detailed information for developers who want to contribute to the Rust Blog project.
 
-## Development Environment Setup
-
-### Required Tools
-- Rust (latest stable version)
-- Cargo (comes with Rust)
-- SQLite3
-- Git
-- A code editor with Rust support (VS Code with rust-analyzer recommended)
-
-### Recommended Extensions
-- rust-analyzer: Rust language support
-- SQLite Viewer: For database inspection
-- TOML: For Cargo.toml editing
-
 ## Project Structure
 
 ```
 rust-blog/
 ├── src/
-│   ├── lib.rs      # Core functionality
-│   │   ├── Post struct and implementations
-│   │   ├── BlogDb database operations
-│   │   └── App web handlers and routing
-│   └── main.rs     # Server setup
-├── tests/
-│   ├── blog_tests.rs   # Database tests
-│   └── web_tests.rs    # Web endpoint tests
-├── docs/           # Documentation
-│   ├── api/        # API documentation
-│   ├── guides/     # User guides
-│   └── development/# Developer guides
-├── Cargo.toml      # Dependencies
-├── Cargo.lock      # Locked dependencies
-└── blog.db         # SQLite database
+│   ├── lib.rs           # Core functionality and database
+│   ├── rocket_app.rs    # Rocket web application
+│   └── bin/
+│       └── rocket_server.rs  # Server entry point
+├── templates/           # Tera templates
+│   ├── base.html.tera
+│   ├── error/
+│   │   ├── 404.html.tera
+│   │   └── 500.html.tera
+│   └── posts/
+│       ├── edit.html.tera
+│       ├── index.html.tera
+│       ├── new.html.tera
+│       └── show.html.tera
+├── tests/              # Integration tests
+│   └── rocket_tests.rs
+├── docs/              # Documentation
+├── Cargo.toml         # Dependencies
+└── README.md         # Project overview
 ```
 
 ## Key Components
 
-### Post Struct
-The core data structure representing a blog post:
+### Database Layer (`lib.rs`)
+
+The database layer uses SQLite with connection pooling:
+
 ```rust
-pub struct Post {
-    id: Option<i64>,
-    title: String,
-    body: String,
-    image_url: String,
+pub struct BlogDb {
+    pool: Pool<SqliteConnectionManager>,
 }
 ```
 
-### Database Operations
-The `BlogDb` struct provides database operations:
+Key features:
 - Connection pooling with r2d2
-- Create: Insert new posts
-- Read: Get post by ID or list all
-- Update: Modify existing posts
+- AUTOINCREMENT for post IDs
+- Transaction support
+- Error handling with anyhow
 
-### Web Handlers
-The `App` struct manages web routes:
-- RESTful routing with proper HTTP methods
-- Form handling with validation
-- Method override for PUT requests
-- Security middleware for XSS prevention
+### Web Application (`rocket_app.rs`)
+
+Built with Rocket framework:
+
+```rust
+#[launch]
+fn rocket() -> _ {
+    rocket::build()
+        .mount("/", routes![
+            index,
+            posts,
+            new_post,
+            create_post,
+            show_post,
+            edit_post,
+            update_post,
+            delete_post,
+        ])
+        .attach(Template::fairing())
+        .attach(Shield::new())
+}
+```
+
+Features:
+- RESTful routing
+- Form handling
+- Error catchers
+- Security headers
+- Template rendering
+
+### Templates
+
+Uses Tera templating engine:
+- Base template inheritance
+- Error handling
+- Form validation
+- Cross-site scripting prevention
+
+## Development Workflow
+
+### Setting Up Development Environment
+
+1. Clone the repository:
+```bash
+git clone https://github.com/yourusername/rust-blog.git
+cd rust-blog
+```
+
+2. Install dependencies:
+```bash
+cargo build
+```
+
+3. Run tests:
+```bash
+cargo test
+```
+
+### Making Changes
+
+1. Create a new branch:
+```bash
+git checkout -b feature/your-feature
+```
+
+2. Write tests first:
+```rust
+#[test]
+fn test_your_feature() {
+    // Setup
+    let (client, db) = setup_client();
+    
+    // Test
+    let response = client.get("/your-endpoint").dispatch();
+    
+    // Assert
+    assert_eq!(response.status(), Status::Ok);
+}
+```
+
+3. Implement your feature
+4. Run tests:
+```bash
+cargo test
+```
+
+5. Format code:
+```bash
+cargo fmt
+```
+
+6. Run clippy:
+```bash
+cargo clippy
+```
+
+### Database Changes
+
+When modifying the database schema:
+
+1. Update the schema in `lib.rs`:
+```rust
+const SCHEMA: &str = "
+    CREATE TABLE IF NOT EXISTS posts (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        title TEXT NOT NULL,
+        body TEXT NOT NULL,
+        image_url TEXT NOT NULL
+    )
+";
+```
+
+2. Add migration tests
+3. Update documentation
+
+### Adding Routes
+
+1. Define the route in `rocket_app.rs`:
+```rust
+#[get("/your/path")]
+fn your_route() -> Template {
+    // Implementation
+}
+```
+
+2. Add to routes list:
+```rust
+.mount("/", routes![
+    // ... existing routes
+    your_route,
+])
+```
+
+3. Create template if needed
+4. Add tests
 
 ## Testing
 
-### Running Tests
-```bash
-# Run all tests
-cargo test
+### Unit Tests
 
-# Run specific test
-cargo test test_name
+Write unit tests in the same file as the code:
 
-# Run with output
-cargo test -- --nocapture
+```rust
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_function() {
+        // Test implementation
+    }
+}
 ```
 
-### Test Organization
-- `blog_tests.rs`: Database operation tests
-- `web_tests.rs`: HTTP endpoint tests
-  - Form submission
-  - Content validation
-  - Error handling
-  - Security features
+### Integration Tests
 
-## Security Considerations
+Write integration tests in `tests/rocket_tests.rs`:
 
-### XSS Prevention
-- HTML escaping on all output
-- URL sanitization for dangerous protocols
-- Input validation on all forms
+```rust
+#[test]
+fn test_endpoint() {
+    let (client, _) = setup_client();
+    let response = client.get("/endpoint").dispatch();
+    assert_eq!(response.status(), Status::Ok);
+}
+```
 
-### Method Override
-- PUT requests via POST with _method parameter
-- Secure handling of method override
-- Form validation and sanitization
+### Test Database
 
-### Database Security
-- Connection pooling for safe concurrent access
-- Parameter binding to prevent SQL injection
-- Input validation before database operations
+Use in-memory SQLite for tests:
 
-## Contributing
+```rust
+let db = BlogDb::new_temporary()?;
+```
 
-### Pull Request Guidelines
-1. Write tests for new features
-2. Update documentation
-3. Follow Rust formatting guidelines
-4. Add entries to CHANGELOG.md
+## Error Handling
 
-### Code Style
-- Use `cargo fmt` for formatting
-- Follow Rust naming conventions
-- Document public interfaces
-- Write meaningful commit messages
+1. Use `anyhow::Result` for most functions
+2. Create custom errors when needed
+3. Map errors to appropriate HTTP responses
+4. Provide user-friendly error messages
 
-## Common Development Tasks
+## Documentation
 
-### Adding a New Feature
-1. Create a new branch
-2. Add tests first (TDD approach)
-3. Implement the feature
-4. Update documentation
-5. Submit a pull request
-
-### Modifying Database Schema
-1. Update the Post struct
-2. Modify database creation SQL
-3. Update CRUD operations
-4. Add migration scripts if needed
-5. Update tests
-
-### Adding New Routes
-1. Add route handler in lib.rs
-2. Add to router configuration
-3. Create corresponding tests
-4. Update API documentation
+1. Document all public items
+2. Keep README.md updated
+3. Update CHANGELOG.md
+4. Maintain API documentation
 
 ## Best Practices
 
-### Code Style
-- Follow Rust standard formatting (use `rustfmt`)
-- Use meaningful variable names
-- Add comments for complex logic
-- Keep functions focused and small
+1. **Code Style**
+   - Follow Rust style guidelines
+   - Use meaningful variable names
+   - Keep functions focused and small
 
-### Error Handling
-- Use `anyhow` for error propagation
-- Provide meaningful error messages
-- Handle all potential error cases
-- Log errors appropriately
+2. **Security**
+   - Validate all inputs
+   - Escape HTML output
+   - Use HTTPS in production
+   - Sanitize URLs
 
-### Security
-- Always escape user input
-- Validate all form data
-- Use prepared statements for SQL
-- Keep dependencies updated
+3. **Testing**
+   - Write tests first
+   - Test edge cases
+   - Use meaningful test names
+   - Keep tests independent
 
-### Performance
-- Use connection pooling
-- Implement efficient database queries
-- Consider pagination for large datasets
-- Profile code when needed
+4. **Database**
+   - Use transactions where appropriate
+   - Handle connection errors
+   - Clean up test data
+   - Use AUTOINCREMENT for IDs
 
-## Debugging
+5. **Error Handling**
+   - Provide helpful error messages
+   - Log errors appropriately
+   - Return appropriate status codes
+   - Handle all error cases
 
-### Common Issues
-1. **Database Connection Errors**
-   - Check SQLite file permissions
-   - Verify connection string
-   - Check for locked database
+## Deployment
 
-2. **Test Failures**
-   - Use `RUST_BACKTRACE=1` for detailed traces
-   - Check temporary file cleanup
-   - Verify test database state
+1. Build for release:
+```bash
+cargo build --release
+```
 
-3. **Compilation Errors**
-   - Update dependencies
-   - Check for breaking changes
-   - Verify trait implementations
+2. Configure database path
+3. Set up reverse proxy
+4. Configure HTTPS
+5. Set up logging
 
-## Additional Resources
+## Contributing
 
-- [Rust Documentation](https://doc.rust-lang.org/book/)
-- [Axum Documentation](https://docs.rs/axum)
+1. Fork the repository
+2. Create a feature branch
+3. Write tests
+4. Implement changes
+5. Submit pull request
+
+## Resources
+
+- [Rocket Documentation](https://rocket.rs/v0.5/guide/)
+- [Tera Documentation](https://tera.netlify.app/)
 - [SQLite Documentation](https://sqlite.org/docs.html)
-- [Rust Testing Book](https://doc.rust-lang.org/book/ch11-00-testing.html)
+- [Rust Book](https://doc.rust-lang.org/book/)

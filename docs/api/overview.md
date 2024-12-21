@@ -1,166 +1,183 @@
 # API Overview
 
-This document provides a comprehensive overview of the Rust Blog API.
+## Introduction
 
-## Base URL
+The Rust Blog is built using the Rocket web framework, providing a RESTful API for managing blog posts. The application uses SQLite for data storage and Tera for templating.
 
-All URLs referenced in the documentation have the base URL:
-```
-http://localhost:3000
-```
+## Routes
 
-## Endpoints
+### Index
+- Path: `GET /`
+- Description: Redirects to the posts index
+- Response: 302 redirect to `/posts`
 
 ### List Posts
-```
-GET /
-```
-
-Returns the HTML index page containing all blog posts.
-
-**Response**:
-- `200 OK`: Successfully retrieved posts
-- `500 Internal Server Error`: Server error occurred
+- Path: `GET /posts`
+- Description: Display all blog posts
+- Template: `posts/index.html.tera`
+- Context:
+  ```rust
+  {
+    title: String,
+    posts: Vec<Post>
+  }
+  ```
 
 ### New Post Form
-```
-GET /posts/new
-```
-
-Returns the HTML form for creating a new blog post.
-
-**Response**:
-- `200 OK`: Successfully retrieved form
+- Path: `GET /posts/new`
+- Description: Display the new post form
+- Template: `posts/new.html.tera`
+- Context:
+  ```rust
+  {
+    title: String,
+    error?: String,
+    form?: PostForm
+  }
+  ```
 
 ### Create Post
-```
-POST /posts
-```
+- Path: `POST /posts`
+- Description: Create a new blog post
+- Form Parameters:
+  - `title`: String (required)
+  - `body`: String (required)
+  - `image_url`: String (required, must be valid URL)
+- Response:
+  - Success: 302 redirect to `/posts/<id>`
+  - Error: 422 with form and error message
 
-Creates a new blog post.
-
-**Request Body** (form-urlencoded):
-```
-title=Post Title&body=Post Content&image_url=https://example.com/image.jpg
-```
-
-**Fields**:
-- `title` (required): The post title
-- `body` (required): The post content
-- `image_url` (required): Valid URL to an image
-
-**Response**:
-- `303 See Other`: Successfully created, redirects to post view
-- `422 Unprocessable Entity`: Invalid input data
-- `500 Internal Server Error`: Server error occurred
-
-### View Post
-```
-GET /posts/:id
-```
-
-Returns the HTML page for viewing a specific post.
-
-**Parameters**:
-- `id`: The post ID (integer)
-
-**Response**:
-- `200 OK`: Successfully retrieved post
-- `404 Not Found`: Post not found
-- `400 Bad Request`: Invalid post ID format
+### Show Post
+- Path: `GET /posts/:id`
+- Description: Display a single post
+- Parameters:
+  - `id`: i64 (post ID)
+- Template: `posts/show.html.tera`
+- Context:
+  ```rust
+  {
+    title: String,
+    post: Post
+  }
+  ```
+- Response:
+  - Success: 200 with post
+  - Not Found: 404
 
 ### Edit Post Form
-```
-GET /posts/:id/edit
-```
-
-Returns the HTML form for editing an existing post.
-
-**Parameters**:
-- `id`: The post ID (integer)
-
-**Response**:
-- `200 OK`: Successfully retrieved form
-- `404 Not Found`: Post not found
-- `400 Bad Request`: Invalid post ID format
+- Path: `GET /posts/:id/edit`
+- Description: Display the edit form for a post
+- Parameters:
+  - `id`: i64 (post ID)
+- Template: `posts/edit.html.tera`
+- Context:
+  ```rust
+  {
+    title: String,
+    post: Post,
+    error?: String,
+    form?: PostForm
+  }
+  ```
+- Response:
+  - Success: 200 with form
+  - Not Found: 404
 
 ### Update Post
-```
-PUT /posts/:id
-```
+- Path: `PUT /posts/:id`
+- Description: Update an existing post
+- Parameters:
+  - `id`: i64 (post ID)
+- Form Parameters:
+  - `title`: String (required)
+  - `body`: String (required)
+  - `image_url`: String (required, must be valid URL)
+  - `_method`: "PUT" (for method override)
+- Response:
+  - Success: 302 redirect to `/posts/<id>`
+  - Error: 422 with form and error message
+  - Not Found: 404
 
-Updates an existing post. Note: HTML forms use POST with method override.
-
-**Parameters**:
-- `id`: The post ID (integer)
-
-**Request Body** (form-urlencoded):
-```
-_method=PUT&title=Updated Title&body=Updated Content&image_url=https://example.com/new.jpg
-```
-
-**Fields**:
-- `_method` (required): Must be "PUT" for method override
-- `title` (required): The updated post title
-- `body` (required): The updated post content
-- `image_url` (required): Valid URL to an image
-
-**Response**:
-- `303 See Other`: Successfully updated, redirects to post view
-- `404 Not Found`: Post not found
-- `400 Bad Request`: Invalid post ID format
-- `422 Unprocessable Entity`: Invalid input data
-- `500 Internal Server Error`: Server error occurred
-
-## Error Handling
-
-The API uses standard HTTP status codes:
-
-- `200-299`: Success
-- `400-499`: Client errors
-- `500-599`: Server errors
-
-Common error responses:
-- `422`: Missing or invalid form fields
-- `415`: Content-Type is not application/x-www-form-urlencoded
-- `500`: Database errors or other internal errors
-
-## Security Features
-
-### XSS Prevention
-- All HTML output is properly escaped
-- URLs are sanitized to prevent dangerous protocols (javascript:, data:, vbscript:)
-
-### Method Override Security
-- PUT requests are handled via POST with method override
-- Method override is only accepted from form submissions
-
-### Input Validation
-- All form inputs are validated before processing
-- URLs are validated for format and safety
-- Post IDs are validated as integers
+### Delete Post
+- Path: `DELETE /posts/:id`
+- Description: Delete a post
+- Parameters:
+  - `id`: i64 (post ID)
+- Form Parameters:
+  - `_method`: "DELETE" (for method override)
+- Response:
+  - Success: 302 redirect to `/posts`
+  - Not Found: 404
 
 ## Data Types
 
 ### Post
+```rust
+pub struct Post {
+    pub id: Option<i64>,
+    pub title: String,
+    pub body: String,
+    pub image_url: String,
+}
+```
 
-A blog post consists of:
-- `id`: Integer, auto-incrementing primary key
-- `title`: String, required
-- `body`: String, required
-- `image_url`: String (valid URL), required
+### PostForm
+```rust
+pub struct PostForm {
+    pub title: String,
+    pub body: String,
+    pub image_url: String,
+    pub _method: Option<String>,
+}
+```
 
-## Future Enhancements
+## Error Handling
 
-The following features are planned for future releases:
-- JSON API endpoints for programmatic access
-- Authentication and authorization
-- Post deletion
-- Categories and tags
-- User authentication
-- Comments system
-- Rate limiting
+The application handles several types of errors:
 
-## Rate Limiting
+### 404 Not Found
+- When a post ID doesn't exist
+- Custom error template: `error/404.html.tera`
 
-Currently, there are no rate limits implemented on the API endpoints.
+### 422 Unprocessable Entity
+- Invalid form data
+- Missing required fields
+- Invalid image URL
+- Custom error template with form preservation
+
+### 500 Internal Server Error
+- Database errors
+- Template rendering errors
+- Custom error template: `error/500.html.tera`
+
+## Templates
+
+The application uses Tera templates stored in the `templates` directory:
+
+```
+templates/
+├── base.html.tera
+├── error/
+│   ├── 404.html.tera
+│   └── 500.html.tera
+└── posts/
+    ├── edit.html.tera
+    ├── index.html.tera
+    ├── new.html.tera
+    └── show.html.tera
+```
+
+## Security Features
+
+1. **CSRF Protection**
+   - Method override tokens for PUT/DELETE
+   - Form validation
+
+2. **XSS Prevention**
+   - HTML escaping in templates
+   - URL sanitization for images
+
+3. **Input Validation**
+   - Required field checking
+   - URL format validation
+   - Error messages for invalid input
