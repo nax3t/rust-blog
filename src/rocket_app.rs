@@ -6,6 +6,7 @@ use rocket_dyn_templates::{Template, context};
 use crate::BlogDb;
 use std::sync::Arc;
 use ::serde::Serialize;
+use rocket::Either;
 
 /// Form data for creating/updating posts
 #[derive(FromForm, Serialize)]
@@ -106,6 +107,73 @@ async fn create_post(form: Form<PostForm>, state: &State<RocketState>) -> Result
     }
 }
 
+/// Show edit post form
+#[get("/posts/<id_str>/edit")]
+async fn edit_post(id_str: &str, state: &State<RocketState>) -> Result<Template, NotFound<String>> {
+    match id_str.parse::<i64>() {
+        Ok(id) => match state.db.get_post(id) {
+            Ok(post) => {
+                let form = PostForm {
+                    title: post.title.clone(),
+                    body: post.body.clone(),
+                    image_url: post.image_url.clone(),
+                };
+                Ok(Template::render("posts/edit", context! {
+                    title: format!("Edit {} - Rust Blog", post.title),
+                    post: post,
+                    form: form
+                }))
+            },
+            Err(_) => Err(NotFound("Post not found".to_string()))
+        },
+        Err(_) => Err(NotFound("Post not found".to_string()))
+    }
+}
+
+/// Update a post
+#[post("/posts/<id_str>", data = "<form>")]
+async fn update_post(id_str: &str, form: Form<PostForm>, state: &State<RocketState>) -> Result<Redirect, Either<NotFound<String>, Custom<Template>>> {
+    // Parse ID
+    let id = match id_str.parse::<i64>() {
+        Ok(id) => id,
+        Err(_) => return Err(Either::Left(NotFound("Post not found".to_string())))
+    };
+    
+    // Check if post exists
+    let post = match state.db.get_post(id) {
+        Ok(post) => post,
+        Err(_) => return Err(Either::Left(NotFound("Post not found".to_string())))
+    };
+    
+    // Validate URL
+    if !form.image_url.starts_with("http://") && !form.image_url.starts_with("https://") {
+        return Err(Either::Right(Custom(
+            Status::UnprocessableEntity,
+            Template::render("posts/edit", context! {
+                title: format!("Edit {} - Rust Blog", post.title),
+                error: "Image URL must start with http:// or https://",
+                post: post,
+                form: &*form
+            })
+        )));
+    }
+    
+    // Update post
+    let updated = crate::Post::new(&form.title, &form.body, &form.image_url);
+    match state.db.update_post(id, &updated) {
+        Ok(_) => Ok(Redirect::to(uri!(show_post(id.to_string())))),
+        Err(_) => Err(Either::Right(Custom(
+            Status::UnprocessableEntity,
+            Template::render("posts/edit", context! {
+                title: format!("Edit {} - Rust Blog", post.title),
+                error: "Failed to update post",
+                post: post,
+                form: &*form
+            })
+        )))
+    }
+}
+
 /// Handle invalid form data
 #[catch(422)]
 fn form_validation(_req: &Request) -> Custom<Template> {
@@ -136,7 +204,7 @@ fn default_catcher(_status: Status, _req: &Request) -> NotFound<String> {
 /// Build the Rocket instance
 pub fn rocket(db: BlogDb) -> rocket::Rocket<rocket::Build> {
     rocket::build()
-        .mount("/", routes![index, posts, new_post, show_post, create_post])
+        .mount("/", routes![index, posts, new_post, show_post, edit_post, update_post, create_post])
         .register("/", catchers![form_validation, not_found, internal_error, default_catcher])
         .manage(RocketState::new(db))
         .attach(Template::fairing())

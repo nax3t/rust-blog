@@ -169,3 +169,83 @@ fn test_create_post_validation() {
     
     assert_eq!(response.status(), Status::UnprocessableEntity);
 }
+
+#[test]
+fn test_edit_post_form() {
+    let (client, db) = setup_client();
+    
+    // Create a test post
+    let post = rust_blog::Post::new("Test Post", "Test Content", "https://example.com/image.jpg");
+    let id = db.create_post(&post).unwrap();
+    
+    let response = client.get(format!("/posts/{}/edit", id)).dispatch();
+    assert_eq!(response.status(), Status::Ok);
+    
+    let body = response.into_string().unwrap();
+    assert!(body.contains("Edit Post")); // Title
+    assert!(body.contains(&format!(r#"<form action="/posts/{}" method="POST">"#, id))); // Form
+    assert!(body.contains(r#"value="Test Post""#)); // Title field
+    assert!(body.contains(r#">Test Content</textarea>"#)); // Body field
+    assert!(body.contains(r#"value="https:&#x2F;&#x2F;example.com&#x2F;image.jpg""#)); // Image URL field
+}
+
+#[test]
+fn test_edit_post() {
+    let (client, db) = setup_client();
+    
+    // Create a test post
+    let post = rust_blog::Post::new("Test Post", "Test Content", "https://example.com/image.jpg");
+    let id = db.create_post(&post).unwrap();
+    
+    let response = client.post(format!("/posts/{}", id))
+        .header(ContentType::Form)
+        .body("title=Updated+Title&body=Updated+Content&image_url=https://example.com/new.jpg")
+        .dispatch();
+    
+    assert_eq!(response.status(), Status::SeeOther);
+    
+    // Verify the post was updated
+    let updated = db.get_post(id).unwrap();
+    assert_eq!(updated.title, "Updated Title");
+    assert_eq!(updated.body, "Updated Content");
+    assert_eq!(updated.image_url, "https://example.com/new.jpg");
+}
+
+#[test]
+fn test_edit_post_validation() {
+    let (client, db) = setup_client();
+    
+    // Create a test post
+    let post = rust_blog::Post::new("Test Post", "Test Content", "https://example.com/image.jpg");
+    let id = db.create_post(&post).unwrap();
+    
+    // Test invalid image URL
+    let response = client.post(format!("/posts/{}", id))
+        .header(ContentType::Form)
+        .body("title=Updated+Title&body=Updated+Content&image_url=invalid-url")
+        .dispatch();
+    
+    assert_eq!(response.status(), Status::UnprocessableEntity);
+    
+    let body = response.into_string().unwrap();
+    assert!(body.contains(r#"<div class="error">"#)); // Error container
+    assert!(body.contains("Image URL must start with http:&#x2F;&#x2F; or https:&#x2F;&#x2F;")); // Error message
+    
+    // Verify the post was not updated
+    let unchanged = db.get_post(id).unwrap();
+    assert_eq!(unchanged.title, "Test Post");
+}
+
+#[test]
+fn test_edit_nonexistent_post() {
+    let (client, _db) = setup_client();
+    
+    let response = client.get("/posts/999/edit").dispatch();
+    assert_eq!(response.status(), Status::NotFound);
+    
+    let response = client.post("/posts/999")
+        .header(ContentType::Form)
+        .body("title=Updated+Title&body=Updated+Content&image_url=https://example.com/new.jpg")
+        .dispatch();
+    assert_eq!(response.status(), Status::NotFound);
+}

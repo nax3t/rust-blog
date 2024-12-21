@@ -5,7 +5,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
-### Changed
+### Added
+- Edit functionality for blog posts
+  - Added routes for editing and updating posts
+  - Created edit form template with validation
+  - Added tests for edit functionality
 - Migration from Axum to Rocket web framework
 - Restructuring to MVC architecture
 - Moving templates to Tera template engine
