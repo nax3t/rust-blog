@@ -243,27 +243,29 @@ pub async fn create_comment(pool: &DbPool, comment: CreateComment, post_id: Uuid
 pub async fn get_post_comments(pool: &DbPool, post_id: Uuid) -> Result<Vec<Comment>> {
     let conn = pool.get()?;
     let mut stmt = conn.prepare(
-        "SELECT c.id, c.content, c.post_id, c.author_id, c.author_username, c.created_at, c.updated_at
-         FROM comments c
-         WHERE c.post_id = ?1
-         ORDER BY c.created_at ASC"
+        "SELECT id, content, post_id, author_id, author_username, created_at, updated_at 
+         FROM comments 
+         WHERE post_id = ? 
+         ORDER BY created_at DESC"
     )?;
 
-    let comments = stmt
-        .query_map(params![post_id.to_string()], |row| {
-            Ok(Comment {
-                id: Uuid::parse_str(&row.get::<_, String>(0)?).unwrap(),
-                content: row.get(1)?,
-                post_id: Uuid::parse_str(&row.get::<_, String>(2)?).unwrap(),
-                author_id: Uuid::parse_str(&row.get::<_, String>(3)?).unwrap(),
-                author_username: row.get(4)?,
-                created_at: row.get(5)?,
-                updated_at: row.get(6)?,
-            })
-        })?
-        .collect::<Result<Vec<_>, _>>()?;
+    let comments = stmt.query_map([post_id.to_string()], |row| {
+        Ok(Comment {
+            id: Uuid::parse_str(&row.get::<_, String>(0)?).unwrap(),
+            content: row.get(1)?,
+            post_id: Uuid::parse_str(&row.get::<_, String>(2)?).unwrap(),
+            author_id: Uuid::parse_str(&row.get::<_, String>(3)?).unwrap(),
+            author_username: row.get(4)?,
+            created_at: row.get(5)?,
+            updated_at: row.get(6)?,
+        })
+    })?;
 
-    Ok(comments)
+    let mut result = Vec::new();
+    for comment in comments {
+        result.push(comment?);
+    }
+    Ok(result)
 }
 
 pub async fn get_comment(pool: &DbPool, id: Uuid) -> Result<Option<Comment>> {
