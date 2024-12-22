@@ -1,0 +1,22 @@
+# Rust build artifacts
+/target
+
+# Database files
+*.db
+*.db-*
+*.sqlite
+*.sqlite3
+
+# Environment files
+.env
+.env.*
+
+# IDE files
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db

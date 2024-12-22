@@ -1,0 +1,27 @@
+{% extends "base" %}
+
+{% block title %}New Post | Blog{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto">
+    <h1 class="text-2xl font-bold mb-6">Create New Post</h1>
+    <form action="/posts" method="post" class="space-y-4">
+        <div>
+            <label for="title" class="block text-gray-700">Title</label>
+            <input type="text" id="title" name="title" required maxlength="100"
+                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-500">
+        </div>
+        <div>
+            <label for="content" class="block text-gray-700">Content</label>
+            <textarea id="content" name="content" rows="10" required
+                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-500"></textarea>
+        </div>
+        <div class="flex justify-end space-x-4">
+            <a href="/" class="py-2 px-4 bg-gray-500 hover:bg-gray-600 text-white rounded-lg">Cancel</a>
+            <button type="submit" class="py-2 px-4 bg-blue-500 hover:bg-blue-600 text-white rounded-lg">
+                Create Post
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}
