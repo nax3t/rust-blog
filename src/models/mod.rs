@@ -1,8 +1,6 @@
-pub mod user;
-pub mod post;
 pub mod comment;
+pub mod post;
+pub mod user;
 
 // Re-export the models for easier access
 pub use user::User;
-pub use post::Post;
-pub use comment::Comment;
