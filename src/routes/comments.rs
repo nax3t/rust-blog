@@ -2,7 +2,7 @@ use rocket::form::Form;
 use rocket::response::{Flash, Redirect};
 use rocket::State;
 use rocket_dyn_templates::{Template, context};
-use rocket::{get, post, put};
+use rocket::{get, post, put, delete};
 use uuid::Uuid;
 use validator::Validate;
 
@@ -117,7 +117,7 @@ pub async fn update_comment(
     }
 }
 
-#[post("/posts/<post_id>/comments/<comment_id>/delete")]
+#[delete("/posts/<post_id>/comments/<comment_id>")]
 pub async fn delete_comment(
     post_id: &str,
     comment_id: &str,
