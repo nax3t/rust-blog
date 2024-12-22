@@ -34,9 +34,9 @@ CREATE TABLE IF NOT EXISTS comments (
 
 -- Test Users (password is 'password123' for all users)
 INSERT INTO users (id, username, password_hash, created_at, updated_at) VALUES
-('550e8400-e29b-41d4-a716-446655440000', 'alice', '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewKyNiAYMxRHHJ6W', '2024-01-01', '2024-01-01'),
-('550e8400-e29b-41d4-a716-446655440001', 'bob', '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewKyNiAYMxRHHJ6W', '2024-01-01', '2024-01-01'),
-('550e8400-e29b-41d4-a716-446655440002', 'carol', '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewKyNiAYMxRHHJ6W', '2024-01-01', '2024-01-01');
+('550e8400-e29b-41d4-a716-446655440000', 'alice', '$2b$12$61M8WS.UrAE69GJoea5JQeOJi7yJOmzvc8idfTNB2ceftaf4pYyq2', '2024-01-01', '2024-01-01'),
+('550e8400-e29b-41d4-a716-446655440001', 'bob', '$2b$12$61M8WS.UrAE69GJoea5JQeOJi7yJOmzvc8idfTNB2ceftaf4pYyq2', '2024-01-01', '2024-01-01'),
+('550e8400-e29b-41d4-a716-446655440002', 'carol', '$2b$12$61M8WS.UrAE69GJoea5JQeOJi7yJOmzvc8idfTNB2ceftaf4pYyq2', '2024-01-01', '2024-01-01');
 
 -- Test Posts
 INSERT INTO posts (id, title, content, author_id, author_username, created_at, updated_at) VALUES
