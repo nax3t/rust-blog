@@ -265,3 +265,42 @@ pub async fn get_post_comments(pool: &DbPool, post_id: Uuid) -> Result<Vec<Comme
 
     Ok(comments)
 }
+
+pub async fn get_comment(pool: &DbPool, id: Uuid) -> Result<Option<Comment>> {
+    let conn = pool.get()?;
+    let mut stmt = conn.prepare(
+        "SELECT c.id, c.content, c.post_id, c.author_id, c.author_username, c.created_at, c.updated_at
+         FROM comments c
+         WHERE c.id = ?1"
+    )?;
+
+    let comment = stmt.query_row(params![id.to_string()], |row| {
+        Ok(Comment {
+            id: Uuid::parse_str(&row.get::<_, String>(0)?).unwrap(),
+            content: row.get(1)?,
+            post_id: Uuid::parse_str(&row.get::<_, String>(2)?).unwrap(),
+            author_id: Uuid::parse_str(&row.get::<_, String>(3)?).unwrap(),
+            author_username: row.get(4)?,
+            created_at: row.get(5)?,
+            updated_at: row.get(6)?,
+        })
+    }).optional()?;
+
+    Ok(comment)
+}
+
+pub async fn update_comment(pool: &DbPool, id: Uuid, content: String) -> Result<bool> {
+    let conn = pool.get()?;
+    let now = Utc::now().to_rfc3339();
+    let rows = conn.execute(
+        "UPDATE comments SET content = ?1, updated_at = ?2 WHERE id = ?3",
+        params![content, now, id.to_string()],
+    )?;
+    Ok(rows > 0)
+}
+
+pub async fn delete_comment(pool: &DbPool, id: Uuid) -> Result<bool> {
+    let conn = pool.get()?;
+    let rows = conn.execute("DELETE FROM comments WHERE id = ?1", params![id.to_string()])?;
+    Ok(rows > 0)
+}

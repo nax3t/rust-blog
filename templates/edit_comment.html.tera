@@ -1,0 +1,23 @@
+{% extends "base" %}
+
+{% block title %}Edit Comment | Blog{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto">
+    <div class="bg-white p-8 rounded-lg shadow">
+        <h1 class="text-2xl font-bold mb-6">Edit Comment</h1>
+        
+        <form action="/posts/{{ comment.post_id }}/comments/{{ comment.id }}" method="post">
+            <div class="mb-6">
+                <label for="content" class="form-label">Comment</label>
+                <textarea id="content" name="content" rows="4" required class="input">{{ comment.content }}</textarea>
+            </div>
+            
+            <div class="flex justify-between">
+                <button type="submit" class="btn btn-primary">Update Comment</button>
+                <a href="/posts/{{ comment.post_id }}" class="btn bg-gray-200 text-gray-700 hover:bg-gray-300">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

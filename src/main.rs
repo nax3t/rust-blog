@@ -30,6 +30,9 @@ async fn rocket() -> _ {
             routes::delete_post,
             routes::create_comment,
             routes::list_comments,
+            routes::edit_comment_page,
+            routes::update_comment,
+            routes::delete_comment,
         ])
         .mount("/assets", FileServer::from(relative!("assets")))
         .manage(pool)
