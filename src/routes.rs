@@ -245,7 +245,7 @@ pub async fn edit_comment_page(
     ))
 }
 
-#[post("/posts/<post_id>/comments/<comment_id>")]
+#[post("/posts/<post_id>/comments/<comment_id>", data = "<comment>")]
 pub async fn update_comment(
     post_id: &str,
     comment_id: &str,
