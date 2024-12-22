@@ -4,45 +4,45 @@ A modern, secure blogging platform built with Rust, Rocket.rs, and Tailwind CSS.
 
 ## Features
 
-- **User Authentication**
-  - Secure user registration and login
-  - Password hashing using bcrypt
-  - Session management with secure cookies
-  - Protected routes for authenticated users
+  - **User Authentication**
+    - Secure user registration and login
+    - Password hashing using bcrypt
+    - Session management with secure cookies
+    - Protected routes for authenticated users
 
-- **Blog Posts**
-  - Create, read, update, and delete blog posts
-  - Clean typography with Tailwind's prose styling
-  - Author attribution
-  - Timestamp tracking for creation and updates
+  - **Blog Posts**
+    - Create, read, update, and delete blog posts
+    - Clean typography with Tailwind's prose styling
+    - Author attribution
+    - Timestamp tracking for creation and updates
 
-- **Comments**
-  - Comment on blog posts
-  - Edit and delete your own comments
-  - Author information and timestamps
-  - Chronological display
+  - **Comments**
+    - Comment on blog posts
+    - Edit and delete your own comments
+    - Author information and timestamps
+    - Chronological display
 
-- **Modern UI**
-  - Responsive design using Tailwind CSS
-  - Clean and intuitive interface
-  - Consistent styling across all pages
-  - Mobile-friendly layout
+  - **Modern UI**
+    - Responsive design using Tailwind CSS
+    - Clean and intuitive interface
+    - Consistent styling across all pages
+    - Mobile-friendly layout
 
 ## Technology Stack
 
-- **Backend**
-  - Rust
-  - Rocket.rs web framework
-  - SQLite database
-  - Rusqlite for database operations
-  - Bcrypt for password hashing
-  - Tera templating engine
+  - **Backend**
+    - Rust
+    - Rocket.rs web framework
+    - SQLite database
+    - Rusqlite for database operations
+    - Bcrypt for password hashing
+    - Tera templating engine
 
-- **Frontend**
-  - Tailwind CSS for styling
-  - HTML templates with Tera
-  - Responsive design
-  - Modern form handling
+  - **Frontend**
+    - Tailwind CSS for styling
+    - HTML templates with Tera
+    - Responsive design
+    - Modern form handling
 
 ## Project Structure
 
@@ -115,7 +115,7 @@ blog/
    - alice (password: password123)
    - bob (password: password123)
    - carol (password: password123)
-   
+
    And populate it with sample posts and comments.
 
 4. **Running the Application**
@@ -131,17 +131,17 @@ blog/
 
 ## Development
 
-- **Database**: Use the `schema.sql` file to set up your database structure
-- **CSS Changes**: Run `npm run watch:css` to automatically compile Tailwind CSS changes
-- **Templates**: Modify `.tera` files in the `templates` directory for UI changes
-- **Routing**: Add new routes in `src/routes` and register them in `main.rs`
+  - **Database**: Use the `schema.sql` file to set up your database structure
+  - **CSS Changes**: Run `npm run watch:css` to automatically compile Tailwind CSS changes
+  - **Templates**: Modify `.tera` files in the `templates` directory for UI changes
+  - **Routing**: Add new routes in `src/routes` and register them in `main.rs`
 
 ## Security Features
 
-- Password hashing using bcrypt with appropriate cost factor
-- Secure session management with private cookies
-- Input validation and sanitization
-- Protected routes with authentication middleware
+  - Password hashing using bcrypt with appropriate cost factor
+  - Secure session management with private cookies
+  - Input validation and sanitization
+  - Protected routes with authentication middleware
 
 ## Contributing
 
