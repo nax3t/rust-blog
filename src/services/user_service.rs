@@ -1,9 +1,9 @@
-use crate::models::{User, CreateUser};
+use crate::models::user::{User, CreateUser};
 use crate::services::db::DbPool;
 use anyhow::Result;
 use chrono::Utc;
 use uuid::Uuid;
-use rusqlite::params;
+use rusqlite::{params, OptionalExtension};
 
 pub async fn create_user(pool: &DbPool, user: CreateUser, password_hash: String) -> Result<User> {
     let conn = pool.get()?;

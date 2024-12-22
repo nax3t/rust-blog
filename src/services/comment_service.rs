@@ -1,9 +1,9 @@
-use crate::models::{Comment, CreateComment};
+use crate::models::comment::{Comment, CreateComment};
 use crate::services::db::DbPool;
 use anyhow::Result;
 use chrono::Utc;
 use uuid::Uuid;
-use rusqlite::params;
+use rusqlite::{params, OptionalExtension};
 
 pub async fn create_comment(pool: &DbPool, comment: CreateComment, post_id: Uuid, author_id: Uuid) -> Result<Comment> {
     let conn = pool.get()?;

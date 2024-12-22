@@ -1,7 +1,8 @@
-mod user;
-mod post;
-mod comment;
+pub mod user;
+pub mod post;
+pub mod comment;
 
-pub use user::{User, CreateUser, LoginUser};
-pub use post::{Post, CreatePost};
-pub use comment::{Comment, CreateComment};
+// Re-export the models for easier access
+pub use user::User;
+pub use post::Post;
+pub use comment::Comment;

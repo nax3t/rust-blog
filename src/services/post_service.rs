@@ -1,9 +1,9 @@
-use crate::models::{Post, CreatePost};
+use crate::models::post::{Post, CreatePost};
 use crate::services::db::DbPool;
 use anyhow::Result;
 use chrono::Utc;
 use uuid::Uuid;
-use rusqlite::params;
+use rusqlite::{params, OptionalExtension};
 
 pub async fn create_post(pool: &DbPool, post: CreatePost, author_id: Uuid) -> Result<Post> {
     let conn = pool.get()?;

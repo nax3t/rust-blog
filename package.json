@@ -3,8 +3,8 @@
   "version": "1.0.0",
   "description": "Blog application with Rocket.rs and Tailwind CSS",
   "scripts": {
-    "build:css": "tailwindcss -i ./assets/css/input.css -o ./assets/css/output.css --minify",
-    "watch:css": "tailwindcss -i ./assets/css/input.css -o ./assets/css/output.css --watch"
+    "build:css": "tailwindcss -i ./static/assets/css/input.css -o ./static/assets/css/output.css --minify",
+    "watch:css": "tailwindcss -i ./static/assets/css/input.css -o ./static/assets/css/output.css --watch"
   },
   "devDependencies": {
     "@tailwindcss/forms": "^0.5.7",
