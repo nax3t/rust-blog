@@ -1,4 +1,7 @@
-use rocket::routes;
+#[macro_use]
+extern crate rocket;
+
+use rocket::fs::{FileServer, relative};
 use rocket_dyn_templates::Template;
 
 mod auth;
@@ -6,8 +9,8 @@ mod db;
 mod models;
 mod routes;
 
-#[rocket::main]
-async fn main() -> Result<(), rocket::Error> {
+#[launch]
+async fn rocket() -> _ {
     let pool = db::init_pool("blog.db").await.expect("Failed to initialize database pool");
 
     rocket::build()
@@ -28,10 +31,7 @@ async fn main() -> Result<(), rocket::Error> {
             routes::create_comment,
             routes::list_comments,
         ])
+        .mount("/assets", FileServer::from(relative!("assets")))
         .manage(pool)
         .attach(Template::fairing())
-        .launch()
-        .await?;
-
-    Ok(())
 }

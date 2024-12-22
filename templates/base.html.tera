@@ -4,38 +4,44 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Blog{% endblock %}</title>
-    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link href="/assets/css/output.css" rel="stylesheet">
 </head>
-<body class="bg-gray-100">
-    <nav class="bg-white shadow-lg mb-8">
-        <div class="max-w-6xl mx-auto px-4">
-            <div class="flex justify-between">
-                <div class="flex space-x-7">
-                    <div>
-                        <a href="/" class="flex items-center py-4">
-                            <span class="font-semibold text-gray-500 text-lg">Blog</span>
-                        </a>
+<body class="bg-gray-100 min-h-screen">
+    <nav class="bg-white shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex">
+                    <div class="flex-shrink-0 flex items-center">
+                        <a href="/" class="text-xl font-bold text-gray-800">Blog</a>
                     </div>
                 </div>
-                <div class="flex items-center space-x-3">
+                <div class="flex items-center space-x-4">
                     {% if user %}
-                        <a href="/posts/new" class="py-2 px-4 bg-blue-500 hover:bg-blue-600 text-white rounded-lg">New Post</a>
+                        <a href="/posts/new" class="btn btn-primary">New Post</a>
                         <form action="/logout" method="post" class="inline">
-                            <button type="submit" class="py-2 px-4 bg-red-500 hover:bg-red-600 text-white rounded-lg">Logout</button>
+                            <button type="submit" class="btn bg-gray-200 text-gray-700 hover:bg-gray-300">Logout</button>
                         </form>
                     {% else %}
-                        <a href="/login" class="py-2 px-4 bg-gray-500 hover:bg-gray-600 text-white rounded-lg">Login</a>
-                        <a href="/register" class="py-2 px-4 bg-blue-500 hover:bg-blue-600 text-white rounded-lg">Register</a>
+                        <a href="/login" class="btn btn-primary">Login</a>
+                        <a href="/register" class="btn bg-gray-200 text-gray-700 hover:bg-gray-300">Register</a>
                     {% endif %}
                 </div>
             </div>
         </div>
     </nav>
 
-    <main class="container mx-auto px-4">
+    <main class="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
         {% if flash %}
-            <div class="mb-4 p-4 rounded-lg {% if flash.kind == 'error' %}bg-red-100 text-red-700{% else %}bg-green-100 text-green-700{% endif %}">
-                {{ flash.message }}
+            <div class="mb-8">
+                {% if flash.kind == "success" %}
+                    <div class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative" role="alert">
+                        <span class="block sm:inline">{{ flash.message }}</span>
+                    </div>
+                {% else %}
+                    <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
+                        <span class="block sm:inline">{{ flash.message }}</span>
+                    </div>
+                {% endif %}
             </div>
         {% endif %}
 
