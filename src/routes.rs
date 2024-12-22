@@ -60,7 +60,7 @@ pub async fn login(credentials: Form<LoginUser>, pool: &State<DbPool>, _cookies:
     let user = match db::get_user_by_username(pool, &credentials.username).await {
         Ok(Some(user)) => user,
         Ok(None) => return Err(Flash::error(Redirect::to("/login"), "Invalid username or password")),
-        Err(_) => return Err(Flash::error(Redirect::to("/login"), "Database error"))
+        Err(_) => return Err(Flash::error(Redirect::to("/login"), "Failed to fetch user"))
     };
 
     match verify_password(&credentials.password, &user.password_hash) {
@@ -95,33 +95,30 @@ pub async fn create_post(user: AuthenticatedUser, post: Form<CreatePost>, pool: 
     }
 
     match db::create_post(pool, post.into_inner(), user.0.id).await {
-        Ok(post) => Ok(Flash::success(Redirect::to(format!("/posts/{}", post.id)), "Post created successfully!")),
+        Ok(_) => Ok(Flash::success(Redirect::to("/"), "Post created successfully!")),
         Err(_) => Err(Flash::error(Redirect::to("/posts/new"), "Failed to create post"))
     }
 }
 
-#[get("/posts")]
-pub async fn list_posts(pool: &State<DbPool>) -> Template {
-    let posts = match db::get_posts(pool).await {
-        Ok(posts) => posts,
-        Err(_) => vec![]
+#[get("/posts/<id>")]
+pub async fn get_post(id: &str, _user: Option<AuthenticatedUser>, pool: &State<DbPool>) -> Result<Template, Flash<Redirect>> {
+    let uuid = match Uuid::parse_str(id) {
+        Ok(uuid) => uuid,
+        Err(_) => return Err(Flash::error(Redirect::to("/"), "Invalid post ID"))
     };
 
-    Template::render("posts", context! {
-        posts: posts
-    })
-}
+    let post = match db::get_post(pool, uuid).await {
+        Ok(Some(post)) => post,
+        Ok(None) => return Err(Flash::error(Redirect::to("/"), "Post not found")),
+        Err(_) => return Err(Flash::error(Redirect::to("/"), "Failed to fetch post"))
+    };
 
-#[get("/posts/<id>")]
-pub async fn get_post(id: &str, _user: Option<AuthenticatedUser>, pool: &State<DbPool>) -> Option<Template> {
-    let uuid = Uuid::parse_str(id).ok()?;
-    let post = db::get_post(pool, uuid).await.ok()??;
     let comments = match db::get_post_comments(pool, uuid).await {
         Ok(comments) => comments,
         Err(_) => vec![]
     };
 
-    Some(Template::render("post", context! {
+    Ok(Template::render("post", context! {
         user: _user.map(|u| u.0),
         post: post,
         comments: comments
@@ -129,29 +126,54 @@ pub async fn get_post(id: &str, _user: Option<AuthenticatedUser>, pool: &State<D
 }
 
 #[get("/posts/<id>/edit")]
-pub async fn edit_post_page(id: &str, user: AuthenticatedUser, pool: &State<DbPool>) -> Option<Template> {
-    let uuid = Uuid::parse_str(id).ok()?;
-    let post = db::get_post(pool, uuid).await.ok()??;
+pub async fn edit_post_page(id: &str, user: AuthenticatedUser, pool: &State<DbPool>) -> Result<Template, Flash<Redirect>> {
+    let uuid = match Uuid::parse_str(id) {
+        Ok(uuid) => uuid,
+        Err(_) => return Err(Flash::error(Redirect::to("/"), "Invalid post ID"))
+    };
+
+    let post = match db::get_post(pool, uuid).await {
+        Ok(Some(post)) => post,
+        Ok(None) => return Err(Flash::error(Redirect::to("/"), "Post not found")),
+        Err(_) => return Err(Flash::error(Redirect::to("/"), "Failed to fetch post"))
+    };
 
     if post.author_id != user.0.id {
-        return None;
+        return Err(Flash::error(Redirect::to("/"), "You don't have permission to edit this post"));
     }
 
-    Some(Template::render("edit_post", context! {
+    Ok(Template::render("edit_post", context! {
         user: user.0,
         post: post
     }))
 }
 
 #[put("/posts/<id>", data = "<post>")]
-pub async fn update_post(id: &str, _user: AuthenticatedUser, post: Form<CreatePost>, pool: &State<DbPool>) -> Result<Flash<Redirect>, Flash<Redirect>> {
+pub async fn update_post(id: &str, user: AuthenticatedUser, post: Form<CreatePost>, pool: &State<DbPool>) -> Result<Flash<Redirect>, Flash<Redirect>> {
     let uuid = match Uuid::parse_str(id) {
         Ok(uuid) => uuid,
-        Err(_) => return Err(Flash::error(Redirect::to(format!("/posts/{}/edit", id)), "Invalid post ID"))
+        Err(_) => return Err(Flash::error(Redirect::to("/"), "Invalid post ID"))
     };
 
+    // Verify post exists and user owns it
+    let existing_post = match db::get_post(pool, uuid).await {
+        Ok(Some(post)) => post,
+        Ok(None) => return Err(Flash::error(Redirect::to("/"), "Post not found")),
+        Err(_) => return Err(Flash::error(Redirect::to("/"), "Failed to fetch post"))
+    };
+
+    if existing_post.author_id != user.0.id {
+        return Err(Flash::error(
+            Redirect::to(format!("/posts/{}", id)),
+            "You don't have permission to edit this post",
+        ));
+    }
+
     if let Err(e) = post.validate() {
-        return Err(Flash::error(Redirect::to(format!("/posts/{}/edit", id)), e.to_string()));
+        return Err(Flash::error(
+            Redirect::to(format!("/posts/{}/edit", id)),
+            e.to_string(),
+        ));
     }
 
     let post = post.into_inner();
@@ -168,21 +190,23 @@ pub async fn delete_post(id: &str, user: AuthenticatedUser, pool: &State<DbPool>
         Err(_) => return Err(Flash::error(Redirect::to("/"), "Invalid post ID"))
     };
 
-    // Check if the post exists and belongs to the user
+    // Verify post exists and user owns it
     let post = match db::get_post(pool, uuid).await {
         Ok(Some(post)) => post,
         Ok(None) => return Err(Flash::error(Redirect::to("/"), "Post not found")),
         Err(_) => return Err(Flash::error(Redirect::to("/"), "Failed to fetch post"))
     };
 
-    // Verify ownership
     if post.author_id != user.0.id {
-        return Err(Flash::error(Redirect::to("/"), "You don't have permission to delete this post"));
+        return Err(Flash::error(
+            Redirect::to("/"),
+            "You don't have permission to delete this post",
+        ));
     }
 
     match db::delete_post(pool, uuid).await {
         Ok(_) => Ok(Flash::success(Redirect::to("/"), "Post deleted successfully!")),
-        Err(_) => Err(Flash::error(Redirect::to(format!("/posts/{}", id)), "Failed to delete post"))
+        Err(_) => Err(Flash::error(Redirect::to("/"), "Failed to delete post"))
     }
 }
 
@@ -190,35 +214,26 @@ pub async fn delete_post(id: &str, user: AuthenticatedUser, pool: &State<DbPool>
 pub async fn create_comment(post_id: &str, user: AuthenticatedUser, comment: Form<CreateComment>, pool: &State<DbPool>) -> Result<Flash<Redirect>, Flash<Redirect>> {
     let uuid = match Uuid::parse_str(post_id) {
         Ok(uuid) => uuid,
-        Err(_) => return Err(Flash::error(Redirect::to(format!("/posts/{}", post_id)), "Invalid post ID"))
+        Err(_) => return Err(Flash::error(Redirect::to("/"), "Invalid post ID"))
     };
 
     if let Err(e) = comment.validate() {
-        return Err(Flash::error(Redirect::to(format!("/posts/{}", post_id)), e.to_string()));
+        return Err(Flash::error(
+            Redirect::to(format!("/posts/{}", post_id)),
+            e.to_string(),
+        ));
     }
 
-    let comment = comment.into_inner();
-    match db::create_comment(pool, comment, uuid, user.0.id).await {
-        Ok(_) => Ok(Flash::success(Redirect::to(format!("/posts/{}", post_id)), "Comment added successfully!")),
-        Err(_) => Err(Flash::error(Redirect::to(format!("/posts/{}", post_id)), "Failed to add comment"))
+    match db::create_comment(pool, comment.into_inner(), uuid, user.0.id).await {
+        Ok(_) => Ok(Flash::success(
+            Redirect::to(format!("/posts/{}", post_id)),
+            "Comment added successfully!",
+        )),
+        Err(_) => Err(Flash::error(
+            Redirect::to(format!("/posts/{}", post_id)),
+            "Failed to add comment",
+        ))
     }
-}
-
-#[get("/posts/<post_id>/comments")]
-pub async fn list_comments(post_id: &str, pool: &State<DbPool>) -> Template {
-    let post_id = match Uuid::parse_str(post_id) {
-        Ok(uuid) => uuid,
-        Err(_) => return Template::render("error", context! { error: "Invalid post ID" })
-    };
-
-    let comments = match db::get_post_comments(pool, post_id).await {
-        Ok(comments) => comments,
-        Err(_) => return Template::render("error", context! { error: "Failed to retrieve comments" })
-    };
-
-    Template::render("comments", context! {
-        comments: comments
-    })
 }
 
 #[get("/posts/<post_id>/comments/<comment_id>/edit")]
@@ -227,16 +242,26 @@ pub async fn edit_comment_page(
     comment_id: &str,
     user: AuthenticatedUser,
     pool: &State<DbPool>,
-) -> Option<Template> {
-    let comment_id = Uuid::parse_str(comment_id).ok()?;
-    let comment = db::get_comment(pool, comment_id).await.ok()??;
+) -> Result<Template, Flash<Redirect>> {
+    let comment_id = match Uuid::parse_str(comment_id) {
+        Ok(uuid) => uuid,
+        Err(_) => return Err(Flash::error(Redirect::to("/"), "Invalid comment ID"))
+    };
+
+    let comment = match db::get_comment(pool, comment_id).await {
+        Ok(Some(comment)) => comment,
+        Ok(None) => return Err(Flash::error(Redirect::to("/"), "Comment not found")),
+        Err(_) => return Err(Flash::error(Redirect::to("/"), "Failed to fetch comment"))
+    };
     
-    // Verify ownership
     if comment.author_id != user.0.id {
-        return None;
+        return Err(Flash::error(
+            Redirect::to(format!("/posts/{}", post_id)),
+            "You don't have permission to edit this comment"
+        ));
     }
     
-    Some(Template::render(
+    Ok(Template::render(
         "edit_comment",
         context! {
             user: user.0,
@@ -255,14 +280,14 @@ pub async fn update_comment(
 ) -> Result<Flash<Redirect>, Flash<Redirect>> {
     let comment_id = match Uuid::parse_str(comment_id) {
         Ok(uuid) => uuid,
-        Err(_) => return Err(Flash::error(Redirect::to("/"), "Invalid comment ID")),
+        Err(_) => return Err(Flash::error(Redirect::to("/"), "Invalid comment ID"))
     };
 
     // Verify comment exists and user owns it
     let existing_comment = match db::get_comment(pool, comment_id).await {
         Ok(Some(comment)) => comment,
         Ok(None) => return Err(Flash::error(Redirect::to("/"), "Comment not found")),
-        Err(_) => return Err(Flash::error(Redirect::to("/"), "Failed to fetch comment")),
+        Err(_) => return Err(Flash::error(Redirect::to("/"), "Failed to fetch comment"))
     };
 
     if existing_comment.author_id != user.0.id {
@@ -287,7 +312,7 @@ pub async fn update_comment(
         Err(_) => Err(Flash::error(
             Redirect::to(format!("/posts/{}/comments/{}/edit", post_id, comment_id)),
             "Failed to update comment",
-        )),
+        ))
     }
 }
 
@@ -300,14 +325,14 @@ pub async fn delete_comment(
 ) -> Result<Flash<Redirect>, Flash<Redirect>> {
     let comment_id = match Uuid::parse_str(comment_id) {
         Ok(uuid) => uuid,
-        Err(_) => return Err(Flash::error(Redirect::to("/"), "Invalid comment ID")),
+        Err(_) => return Err(Flash::error(Redirect::to("/"), "Invalid comment ID"))
     };
 
     // Verify comment exists and user owns it
     let comment = match db::get_comment(pool, comment_id).await {
         Ok(Some(comment)) => comment,
         Ok(None) => return Err(Flash::error(Redirect::to("/"), "Comment not found")),
-        Err(_) => return Err(Flash::error(Redirect::to("/"), "Failed to fetch comment")),
+        Err(_) => return Err(Flash::error(Redirect::to("/"), "Failed to fetch comment"))
     };
 
     if comment.author_id != user.0.id {
@@ -325,6 +350,6 @@ pub async fn delete_comment(
         Err(_) => Err(Flash::error(
             Redirect::to(format!("/posts/{}", post_id)),
             "Failed to delete comment",
-        )),
+        ))
     }
 }
