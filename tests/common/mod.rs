@@ -4,7 +4,8 @@ use uuid::Uuid;
 use chrono;
 use bcrypt;
 use anyhow::Result;
-use crate::test_cleanup;
+use std::fs;
+use std::path::Path;
 
 type DbPool = Pool<SqliteConnectionManager>;
 
@@ -17,6 +18,8 @@ pub async fn setup_test_db() -> Result<(String, DbPool)> {
     // Create tables
     let conn = pool.get()?;
     conn.execute_batch("
+        PRAGMA foreign_keys = ON;
+        
         CREATE TABLE IF NOT EXISTS users (
             id TEXT PRIMARY KEY,
             username TEXT UNIQUE NOT NULL,
@@ -30,10 +33,9 @@ pub async fn setup_test_db() -> Result<(String, DbPool)> {
             title TEXT NOT NULL,
             content TEXT NOT NULL,
             author_id TEXT NOT NULL,
-            author_username TEXT NOT NULL,
             created_at TEXT NOT NULL,
             updated_at TEXT NOT NULL,
-            FOREIGN KEY (author_id) REFERENCES users(id)
+            FOREIGN KEY (author_id) REFERENCES users(id) ON DELETE CASCADE
         );
 
         CREATE TABLE IF NOT EXISTS comments (
@@ -41,17 +43,13 @@ pub async fn setup_test_db() -> Result<(String, DbPool)> {
             content TEXT NOT NULL,
             post_id TEXT NOT NULL,
             author_id TEXT NOT NULL,
-            author_username TEXT NOT NULL,
             created_at TEXT NOT NULL,
             updated_at TEXT NOT NULL,
             FOREIGN KEY (post_id) REFERENCES posts(id) ON DELETE CASCADE,
-            FOREIGN KEY (author_id) REFERENCES users(id)
+            FOREIGN KEY (author_id) REFERENCES users(id) ON DELETE CASCADE
         );
     ")?;
-    
-    // Register the database for cleanup
-    test_cleanup::register_test_db(db_name.clone());
-    
+
     Ok((db_name.to_string(), pool))
 }
 
@@ -76,4 +74,11 @@ pub async fn create_test_user(pool: &DbPool, username: &str) -> Result<Uuid> {
     )?;
     
     Ok(id)
+}
+
+/// Cleanup test database
+pub fn cleanup_test_db(db_name: &str) {
+    if Path::new(db_name).exists() {
+        fs::remove_file(db_name).ok();
+    }
 }

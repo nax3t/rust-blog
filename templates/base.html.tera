@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Blog{% endblock %}</title>
-    <link href="/assets/css/output.css" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-gray-100 min-h-screen">
     <nav class="bg-white shadow-sm">
@@ -17,13 +17,14 @@
                 </div>
                 <div class="flex items-center space-x-4">
                     {% if user %}
-                        <a href="/posts/new" class="btn btn-primary">New Post</a>
+                        <a href="/posts/new" class="text-gray-600 hover:bg-gray-100 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium">New Post</a>
+                        <a href="/profile" class="text-gray-600 hover:bg-gray-100 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium">Profile</a>
                         <form action="/logout" method="post" class="inline">
-                            <button type="submit" class="btn bg-gray-200 text-gray-700 hover:bg-gray-300">Logout</button>
+                            <button type="submit" class="bg-gray-200 text-gray-700 hover:bg-gray-300 px-3 py-2 rounded-md text-sm font-medium">Logout</button>
                         </form>
                     {% else %}
-                        <a href="/login" class="btn btn-primary">Login</a>
-                        <a href="/register" class="btn bg-gray-200 text-gray-700 hover:bg-gray-300">Register</a>
+                        <a href="/login" class="bg-indigo-600 text-white hover:bg-indigo-700 px-3 py-2 rounded-md text-sm font-medium">Login</a>
+                        <a href="/register" class="bg-gray-200 text-gray-700 hover:bg-gray-300 px-3 py-2 rounded-md text-sm font-medium">Register</a>
                     {% endif %}
                 </div>
             </div>

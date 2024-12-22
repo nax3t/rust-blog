@@ -10,7 +10,7 @@
                 <a href="/posts/{{ post.id }}" class="text-blue-600 hover:text-blue-800">{{ post.title }}</a>
             </h2>
             <div class="text-gray-600 mb-4">
-                Posted by {{ post.author_username }} on {{ post.created_at | date(format="%B %d, %Y") }}
+                Posted by {{ post.author }} on {{ post.created_at | date(format="%B %d, %Y") }}
             </div>
             <p class="text-gray-700">{{ post.content | truncate(length=200) }}</p>
             <div class="mt-4">

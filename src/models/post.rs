@@ -3,13 +3,13 @@ use uuid::Uuid;
 use validator::Validate;
 use rocket::form::FromForm;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Post {
     pub id: Uuid,
     pub title: String,
     pub content: String,
     pub author_id: Uuid,
-    pub author_username: String,
+    pub author: String,
     pub created_at: String,
     pub updated_at: String,
 }

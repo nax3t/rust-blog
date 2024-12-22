@@ -1,13 +1,16 @@
 use rocket::form::Form;
 use rocket::response::{Flash, Redirect};
-use rocket::http::CookieJar;
-use rocket::{get, post, State};
+use rocket::State;
+use rocket::http::Cookie;
 use rocket_dyn_templates::{Template, context};
+use rocket::http::CookieJar;
 use validator::Validate;
-use crate::models::user::{CreateUser, LoginUser};
-use crate::auth::{AuthenticatedUser, hash_password, verify_password};
+use rocket::{get, post, uri};
+
+use crate::models::auth::{AuthenticatedUser, hash_password, verify_password};
 use crate::services::db::DbPool;
 use crate::services::user_service;
+use crate::models::user::{CreateUser, LoginUser};
 
 #[get("/register")]
 pub fn register_page(_user: Option<AuthenticatedUser>) -> Template {
@@ -41,21 +44,36 @@ pub fn login_page(_user: Option<AuthenticatedUser>) -> Template {
 }
 
 #[post("/login", data = "<credentials>")]
-pub async fn login(credentials: Form<LoginUser>, pool: &State<DbPool>, _cookies: &CookieJar<'_>) -> Result<Flash<Redirect>, Flash<Redirect>> {
+pub async fn login(
+    credentials: Form<LoginUser>,
+    pool: &State<DbPool>,
+    cookies: &CookieJar<'_>,
+) -> Result<Flash<Redirect>, Flash<Redirect>> {
     let user = match user_service::get_user_by_username(pool, &credentials.username).await {
         Ok(Some(user)) => user,
-        Ok(None) => return Err(Flash::error(Redirect::to("/login"), "Invalid username or password")),
-        Err(_) => return Err(Flash::error(Redirect::to("/login"), "Failed to fetch user"))
+        Ok(None) => {
+            return Err(Flash::error(
+                Redirect::to(uri!(login_page)),
+                "Invalid username or password",
+            ))
+        }
+        Err(_) => {
+            return Err(Flash::error(
+                Redirect::to(uri!(login_page)),
+                "An error occurred",
+            ))
+        }
     };
 
     match verify_password(&credentials.password, &user.password_hash) {
         Ok(true) => {
-            let mut cookie = rocket::http::Cookie::new("user_id", user.id.to_string());
-            cookie.set_http_only(true);
-            _cookies.add_private(cookie);
-            Ok(Flash::success(Redirect::to("/"), "Login successful!"))
-        },
-        _ => Err(Flash::error(Redirect::to("/login"), "Invalid username or password"))
+            cookies.add_private(Cookie::new("user_id", user.id.to_string()));
+            Ok(Flash::success(Redirect::to("/"), "Successfully logged in"))
+        }
+        _ => Err(Flash::error(
+            Redirect::to(uri!(login_page)),
+            "Invalid username or password",
+        )),
     }
 }
 

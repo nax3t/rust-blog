@@ -9,7 +9,7 @@ pub struct Comment {
     pub content: String,
     pub post_id: Uuid,
     pub author_id: Uuid,
-    pub author_username: String,
+    pub author: String,
     pub created_at: String,
     pub updated_at: String,
 }

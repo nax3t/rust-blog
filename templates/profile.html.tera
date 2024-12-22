@@ -1,0 +1,57 @@
+{% extends "base" %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto p-4">
+    <h1 class="text-2xl font-bold mb-6">Profile Settings</h1>
+    
+    {% if flash %}
+        <div class="bg-{{ flash.kind }}-100 border border-{{ flash.kind }}-400 text-{{ flash.kind }}-700 px-4 py-3 rounded relative mb-4" role="alert">
+            <span class="block sm:inline">{{ flash.message }}</span>
+        </div>
+    {% endif %}
+
+    <div class="bg-white shadow rounded-lg p-6 mb-6">
+        <h2 class="text-lg font-semibold mb-4">Change Username</h2>
+        <form action="/profile/username" method="POST" class="space-y-4">
+            <input type="hidden" name="_method" value="PUT">
+            <div>
+                <label for="username" class="block text-sm font-medium text-gray-700">Username</label>
+                <input type="text" name="username" id="username" value="{{ user.username }}" required
+                       class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+            </div>
+            <div class="flex justify-end">
+                <button type="submit" class="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
+                    Update Username
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <div class="bg-white shadow rounded-lg p-6">
+        <h2 class="text-lg font-semibold mb-4">Change Password</h2>
+        <form action="/profile/password" method="POST" class="space-y-4">
+            <input type="hidden" name="_method" value="PUT">
+            <div>
+                <label for="current_password" class="block text-sm font-medium text-gray-700">Current Password</label>
+                <input type="password" name="current_password" id="current_password" required
+                       class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+            </div>
+            <div>
+                <label for="new_password" class="block text-sm font-medium text-gray-700">New Password</label>
+                <input type="password" name="new_password" id="new_password" required
+                       class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+            </div>
+            <div>
+                <label for="confirm_password" class="block text-sm font-medium text-gray-700">Confirm New Password</label>
+                <input type="password" name="confirm_password" id="confirm_password" required
+                       class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+            </div>
+            <div class="flex justify-end">
+                <button type="submit" class="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
+                    Update Password
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

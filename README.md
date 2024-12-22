@@ -1,156 +1,107 @@
-# Rust Blog Application
+# Rust Blog API
 
-A modern, secure blogging platform built with Rust, Rocket.rs, and Tailwind CSS. This application provides a full-featured blogging experience with user authentication, post management, and commenting system.
+A RESTful blog API built with Rust, featuring user authentication, posts, and comments.
 
 ## Features
 
-  - **User Authentication**
-    - Secure user registration and login
-    - Password hashing using bcrypt
-    - Session management with secure cookies
-    - Protected routes for authenticated users
+- User Management
+  - User registration and authentication
+  - Password hashing with bcrypt
+  - JWT-based authentication
 
-  - **Blog Posts**
-    - Create, read, update, and delete blog posts
-    - Clean typography with Tailwind's prose styling
-    - Author attribution
-    - Timestamp tracking for creation and updates
+- Blog Posts
+  - Create, read, update, and delete posts
+  - Posts are associated with authors
+  - Automatic cascading deletes
 
-  - **Comments**
-    - Comment on blog posts
-    - Edit and delete your own comments
-    - Author information and timestamps
-    - Chronological display
+- Comments
+  - Comment on posts
+  - Comments are associated with both posts and authors
+  - Automatic cascading deletes
 
-  - **Modern UI**
-    - Responsive design using Tailwind CSS
-    - Clean and intuitive interface
-    - Consistent styling across all pages
-    - Mobile-friendly layout
+## Database Schema
 
-## Technology Stack
-
-  - **Backend**
-    - Rust
-    - Rocket.rs web framework
-    - SQLite database
-    - Rusqlite for database operations
-    - Bcrypt for password hashing
-    - Tera templating engine
-
-  - **Frontend**
-    - Tailwind CSS for styling
-    - HTML templates with Tera
-    - Responsive design
-    - Modern form handling
-
-## Project Structure
-
-```
-blog/
-├── src/
-│   ├── main.rs              # Application entry point and server setup
-│   ├── auth.rs              # Authentication logic and middleware
-│   ├── models/              # Data models and structures
-│   │   ├── mod.rs
-│   │   ├── user.rs
-│   │   ├── post.rs
-│   │   └── comment.rs
-│   ├── routes/              # Route handlers
-│   │   ├── mod.rs
-│   │   ├── auth.rs
-│   │   ├── posts.rs
-│   │   └── comments.rs
-│   └── services/           # Business logic and database operations
-│       ├── mod.rs
-│       ├── db.rs
-│       ├── user_service.rs
-│       ├── post_service.rs
-│       └── comment_service.rs
-├── templates/              # Tera HTML templates
-│   ├── base.html.tera
-│   ├── index.html.tera
-│   ├── login.html.tera
-│   ├── register.html.tera
-│   └── post.html.tera
-├── static/                # Static assets
-│   └── assets/
-│       └── css/
-│           ├── input.css  # Tailwind source CSS
-│           └── output.css # Compiled CSS
-├── Cargo.toml            # Rust dependencies
-└── package.json         # Node.js dependencies (for Tailwind)
+### Users Table
+```sql
+CREATE TABLE users (
+    id TEXT PRIMARY KEY,
+    username TEXT UNIQUE NOT NULL,
+    password_hash TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
 ```
 
-## Setup and Installation
+### Posts Table
+```sql
+CREATE TABLE posts (
+    id TEXT PRIMARY KEY,
+    title TEXT NOT NULL,
+    content TEXT NOT NULL,
+    author_id TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    FOREIGN KEY (author_id) REFERENCES users(id) ON DELETE CASCADE
+);
+```
 
-1. **Prerequisites**
-   - Rust and Cargo (latest stable version)
-   - Node.js and npm (for Tailwind CSS)
-   - SQLite
-
-2. **Installation**
-   ```bash
-   # Clone the repository
-   git clone <repository-url>
-   cd blog
-
-   # Install Rust dependencies
-   cargo build
-
-   # Install Node.js dependencies
-   npm install
-
-   # Build CSS
-   npm run build:css
-   ```
-
-3. **Database Setup**
-   ```bash
-   # Create and seed the SQLite database
-   sqlite3 blog.db < seed.sql
-   ```
-
-   This will create the database with test users:
-   - alice (password: password123)
-   - bob (password: password123)
-   - carol (password: password123)
-
-   And populate it with sample posts and comments.
-
-4. **Running the Application**
-   ```bash
-   # Start the development server
-   cargo run
-
-   # In a separate terminal, watch for CSS changes
-   npm run watch:css
-   ```
-
-   The application will be available at `http://localhost:<port>` (check the console output for the exact port)
+### Comments Table
+```sql
+CREATE TABLE comments (
+    id TEXT PRIMARY KEY,
+    content TEXT NOT NULL,
+    post_id TEXT NOT NULL,
+    author_id TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    FOREIGN KEY (post_id) REFERENCES posts(id) ON DELETE CASCADE,
+    FOREIGN KEY (author_id) REFERENCES users(id) ON DELETE CASCADE
+);
+```
 
 ## Development
 
-  - **Database**: Use the `schema.sql` file to set up your database structure
-  - **CSS Changes**: Run `npm run watch:css` to automatically compile Tailwind CSS changes
-  - **Templates**: Modify `.tera` files in the `templates` directory for UI changes
-  - **Routing**: Add new routes in `src/routes` and register them in `main.rs`
+### Prerequisites
+- Rust (latest stable version)
+- SQLite
+
+### Setup
+1. Clone the repository
+2. Run `cargo build`
+3. Run `cargo test` to ensure everything is working
+
+### Running Tests
+```bash
+cargo test
+```
+
+The test suite includes:
+- Unit tests for all services
+- Integration tests for database operations
+- Cascade delete tests for referential integrity
+
+### API Endpoints
+
+#### Users
+- POST `/api/users/register` - Register a new user
+- POST `/api/users/login` - Login and receive JWT token
+
+#### Posts
+- GET `/api/posts` - List all posts
+- GET `/api/posts/{id}` - Get a specific post
+- POST `/api/posts` - Create a new post (requires authentication)
+- PUT `/api/posts/{id}` - Update a post (requires authentication)
+- DELETE `/api/posts/{id}` - Delete a post (requires authentication)
+
+#### Comments
+- GET `/api/posts/{post_id}/comments` - List comments for a post
+- POST `/api/posts/{post_id}/comments` - Add a comment (requires authentication)
+- PUT `/api/comments/{id}` - Update a comment (requires authentication)
+- DELETE `/api/comments/{id}` - Delete a comment (requires authentication)
 
 ## Security Features
-
-  - Password hashing using bcrypt with appropriate cost factor
-  - Secure session management with private cookies
-  - Input validation and sanitization
-  - Protected routes with authentication middleware
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Commit your changes
-4. Push to the branch
-5. Create a Pull Request
-
-## License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
+- Password hashing using bcrypt
+- JWT-based authentication
+- Input validation and sanitization
+- Foreign key constraints for data integrity
+- Proper error handling and logging

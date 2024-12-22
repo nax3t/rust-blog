@@ -1,11 +1,13 @@
 use rocket::form::Form;
 use rocket::response::{Flash, Redirect};
-use rocket::{get, post, State};
+use rocket::State;
 use rocket_dyn_templates::{Template, context};
+use rocket::{get, post};
 use uuid::Uuid;
 use validator::Validate;
+
+use crate::models::auth::AuthenticatedUser;
 use crate::models::comment::CreateComment;
-use crate::auth::AuthenticatedUser;
 use crate::services::db::DbPool;
 use crate::services::comment_service;
 

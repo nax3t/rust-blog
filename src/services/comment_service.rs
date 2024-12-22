@@ -10,22 +10,14 @@ pub async fn create_comment(pool: &DbPool, comment: CreateComment, post_id: Uuid
     let now = Utc::now().to_rfc3339();
     let id = Uuid::new_v4();
 
-    // Get author username
-    let author_username = conn.query_row(
-        "SELECT username FROM users WHERE id = ?1",
-        [author_id.to_string()],
-        |row| row.get::<_, String>(0)
-    )?;
-
     conn.execute(
-        "INSERT INTO comments (id, content, post_id, author_id, author_username, created_at, updated_at)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+        "INSERT INTO comments (id, content, post_id, author_id, created_at, updated_at)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
         params![
             id.to_string(),
             comment.content,
             post_id.to_string(),
             author_id.to_string(),
-            author_username,
             now,
             now
         ],
@@ -36,7 +28,7 @@ pub async fn create_comment(pool: &DbPool, comment: CreateComment, post_id: Uuid
         content: comment.content,
         post_id,
         author_id,
-        author_username,
+        author: "".to_string(),
         created_at: now.clone(),
         updated_at: now,
     })
@@ -45,10 +37,11 @@ pub async fn create_comment(pool: &DbPool, comment: CreateComment, post_id: Uuid
 pub async fn get_post_comments(pool: &DbPool, post_id: Uuid) -> Result<Vec<Comment>> {
     let conn = pool.get()?;
     let mut stmt = conn.prepare(
-        "SELECT id, content, post_id, author_id, author_username, created_at, updated_at 
-         FROM comments 
-         WHERE post_id = ? 
-         ORDER BY created_at DESC"
+        "SELECT c.id, c.content, c.post_id, c.author_id, u.username as author, c.created_at, c.updated_at 
+         FROM comments c
+         JOIN users u ON c.author_id = u.id
+         WHERE c.post_id = ? 
+         ORDER BY c.created_at DESC"
     )?;
 
     let comments = stmt.query_map([post_id.to_string()], |row| {
@@ -57,7 +50,7 @@ pub async fn get_post_comments(pool: &DbPool, post_id: Uuid) -> Result<Vec<Comme
             content: row.get(1)?,
             post_id: Uuid::parse_str(&row.get::<_, String>(2)?).unwrap(),
             author_id: Uuid::parse_str(&row.get::<_, String>(3)?).unwrap(),
-            author_username: row.get(4)?,
+            author: row.get(4)?,
             created_at: row.get(5)?,
             updated_at: row.get(6)?,
         })
@@ -73,9 +66,10 @@ pub async fn get_post_comments(pool: &DbPool, post_id: Uuid) -> Result<Vec<Comme
 pub async fn get_comment(pool: &DbPool, id: Uuid) -> Result<Option<Comment>> {
     let conn = pool.get()?;
     let mut stmt = conn.prepare(
-        "SELECT id, content, post_id, author_id, author_username, created_at, updated_at
-         FROM comments
-         WHERE id = ?1"
+        "SELECT c.id, c.content, c.post_id, c.author_id, u.username as author, c.created_at, c.updated_at
+         FROM comments c
+         JOIN users u ON c.author_id = u.id
+         WHERE c.id = ?1"
     )?;
 
     let comment = stmt.query_row([id.to_string()], |row| {
@@ -84,7 +78,7 @@ pub async fn get_comment(pool: &DbPool, id: Uuid) -> Result<Option<Comment>> {
             content: row.get(1)?,
             post_id: Uuid::parse_str(&row.get::<_, String>(2)?).unwrap(),
             author_id: Uuid::parse_str(&row.get::<_, String>(3)?).unwrap(),
-            author_username: row.get(4)?,
+            author: row.get(4)?,
             created_at: row.get(5)?,
             updated_at: row.get(6)?,
         })
