@@ -2,7 +2,7 @@ use rocket::form::Form;
 use rocket::response::{Flash, Redirect};
 use rocket::State;
 use rocket_dyn_templates::{Template, context};
-use rocket::{get, post};
+use rocket::{get, post, put};
 use uuid::Uuid;
 use validator::Validate;
 
@@ -71,7 +71,7 @@ pub async fn edit_comment_page(
     ))
 }
 
-#[post("/posts/<post_id>/comments/<comment_id>", data = "<comment>")]
+#[put("/posts/<post_id>/comments/<comment_id>", data = "<comment>")]
 pub async fn update_comment(
     post_id: &str,
     comment_id: &str,

@@ -1,29 +1,53 @@
 {% extends "base" %}
 
-{% block title %}Home | Blog{% endblock %}
+{% block title %}Home - Blog{% endblock %}
 
 {% block content %}
 <div class="space-y-6">
-    {% for post in posts %}
-        <article class="bg-white p-6 rounded-lg shadow">
-            <h2 class="text-2xl font-bold mb-2">
-                <a href="/posts/{{ post.id }}" class="text-blue-600 hover:text-blue-800">{{ post.title }}</a>
-            </h2>
-            <div class="text-gray-600 mb-4">
-                Posted by {{ post.author }} on {{ post.created_at | date(format="%B %d, %Y") }}
-            </div>
-            <p class="text-gray-700">{{ post.content | truncate(length=200) }}</p>
-            <div class="mt-4">
-                <a href="/posts/{{ post.id }}" class="text-blue-500 hover:text-blue-700">Read more →</a>
-            </div>
-        </article>
+    {% if posts | length > 0 %}
+        {% for post in posts %}
+            <article class="bg-white shadow-sm rounded-lg overflow-hidden hover:shadow-md transition-shadow duration-200">
+                <a href="/posts/{{ post.id }}" class="block">
+                    <div class="px-6 py-6">
+                        <h2 class="text-2xl font-bold text-gray-900 mb-2 hover:text-indigo-600">{{ post.title }}</h2>
+                        
+                        <div class="flex items-center text-sm text-gray-500 mb-4">
+                            <span>By {{ post.author }}</span>
+                            <span class="mx-2">&bull;</span>
+                            <time datetime="{{ post.created_at }}">{{ post.created_at | date(format="%B %d, %Y") }}</time>
+                            {% if post.updated_at != post.created_at %}
+                                <span class="mx-2">&bull;</span>
+                                <span>Updated {{ post.updated_at | date(format="%B %d, %Y") }}</span>
+                            {% endif %}
+                        </div>
+
+                        <div class="prose prose-indigo line-clamp-3">
+                            {{ post.content }}
+                        </div>
+
+                        <div class="mt-4">
+                            <span class="text-indigo-600 hover:text-indigo-500">Read more &rarr;</span>
+                        </div>
+                    </div>
+                </a>
+            </article>
+        {% endfor %}
     {% else %}
-        <div class="text-center py-8">
-            <p class="text-gray-600">No posts yet.</p>
+        <div class="text-center py-12">
+            <h3 class="text-xl font-medium text-gray-900 mb-2">No posts yet</h3>
+            <p class="text-gray-500">Be the first to create a post!</p>
             {% if user %}
-                <a href="/posts/new" class="mt-4 inline-block py-2 px-4 bg-blue-500 hover:bg-blue-600 text-white rounded-lg">Create your first post</a>
+                <div class="mt-6">
+                    <a href="/posts/new" class="btn btn-primary">Create Post</a>
+                </div>
+            {% else %}
+                <div class="mt-6">
+                    <a href="/login" class="text-indigo-600 hover:text-indigo-500">Log in</a>
+                    <span class="text-gray-500 mx-2">&bull;</span>
+                    <a href="/register" class="text-indigo-600 hover:text-indigo-500">Register</a>
+                </div>
             {% endif %}
         </div>
-    {% endfor %}
+    {% endif %}
 </div>
 {% endblock %}

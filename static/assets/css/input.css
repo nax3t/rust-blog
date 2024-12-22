@@ -3,19 +3,51 @@
 @tailwind utilities;
 
 @layer components {
-  .btn {
-    @apply py-2 px-4 rounded-lg font-medium transition-colors duration-200;
-  }
-  .btn-primary {
-    @apply bg-blue-500 text-white hover:bg-blue-600;
-  }
-  .btn-danger {
-    @apply bg-red-500 text-white hover:bg-red-600;
-  }
-  .input {
-    @apply block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-500;
-  }
-  .form-label {
-    @apply block text-gray-700 mb-2;
-  }
+    .btn {
+        @apply px-4 py-2 rounded-lg font-medium transition-colors duration-200 text-sm;
+    }
+
+    .btn-primary {
+        @apply bg-indigo-600 text-white hover:bg-indigo-500;
+    }
+
+    .btn-danger {
+        @apply bg-red-600 text-white hover:bg-red-500;
+    }
+
+    .form-label {
+        @apply block text-sm font-medium text-gray-700 mb-1;
+    }
+
+    .input {
+        @apply block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm;
+    }
+}
+
+.prose {
+    @apply max-w-none;
+}
+
+.prose a {
+    @apply text-indigo-600 hover:text-indigo-500 no-underline;
+}
+
+.prose h1, .prose h2, .prose h3, .prose h4 {
+    @apply text-gray-900;
+}
+
+.prose p, .prose ul, .prose ol {
+    @apply text-gray-700;
+}
+
+.prose code {
+    @apply bg-gray-100 px-1 py-0.5 rounded text-gray-800;
+}
+
+.prose pre {
+    @apply bg-gray-100 p-4 rounded-lg;
+}
+
+.prose blockquote {
+    @apply border-l-4 border-gray-200 pl-4 italic text-gray-600;
 }

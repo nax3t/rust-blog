@@ -1,21 +1,24 @@
 {% extends "base" %}
 
-{% block title %}Edit Comment | Blog{% endblock %}
+{% block title %}Edit Comment - Blog{% endblock %}
 
 {% block content %}
-<div class="max-w-4xl mx-auto">
-    <div class="bg-white p-8 rounded-lg shadow">
-        <h1 class="text-2xl font-bold mb-6">Edit Comment</h1>
+<div class="max-w-2xl mx-auto">
+    <div class="bg-white shadow-sm rounded-lg p-8">
+        <h1 class="text-2xl font-bold text-gray-900 mb-6">Edit comment</h1>
         
         <form action="/posts/{{ comment.post_id }}/comments/{{ comment.id }}" method="post">
-            <div class="mb-6">
-                <label for="content" class="form-label">Comment</label>
-                <textarea id="content" name="content" rows="4" required class="input">{{ comment.content }}</textarea>
-            </div>
-            
-            <div class="flex justify-between">
-                <button type="submit" class="btn btn-primary">Update Comment</button>
-                <a href="/posts/{{ comment.post_id }}" class="btn bg-gray-200 text-gray-700 hover:bg-gray-300">Cancel</a>
+            <input type="hidden" name="_method" value="put">
+            <div class="space-y-6">
+                <div>
+                    <label for="content" class="form-label">Content</label>
+                    <textarea id="content" name="content" rows="4" class="input" required>{{ comment.content }}</textarea>
+                </div>
+
+                <div class="flex justify-end space-x-4">
+                    <a href="/posts/{{ comment.post_id }}" class="btn bg-white border border-gray-300 text-gray-700 hover:bg-gray-50">Cancel</a>
+                    <button type="submit" class="btn btn-primary">Update comment</button>
+                </div>
             </div>
         </form>
     </div>

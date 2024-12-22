@@ -21,7 +21,7 @@ fn rocket() -> _ {
 
     rocket::build()
         .mount("/", routes::routes())
-        .mount("/static", FileServer::from("static"))
+        .mount("/static", FileServer::from(rocket::fs::relative!("static")))
         .manage(pool)
         .attach(Template::fairing())
 }
