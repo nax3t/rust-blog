@@ -11,17 +11,11 @@ pub fn register_test_db(db_name: String) {
     dbs.insert(db_name);
 }
 
-pub fn cleanup_test_dbs() {
+#[ctor::dtor]
+fn cleanup_test_dbs() {
     let mut dbs = TEST_DBS.lock().unwrap();
     for db_name in dbs.iter() {
         fs::remove_file(db_name).ok();
     }
     dbs.clear();
-}
-
-#[test]
-fn cleanup_on_test_completion() {
-    // This test will run last (due to alphabetical ordering)
-    // and clean up all test databases
-    cleanup_test_dbs();
 }
