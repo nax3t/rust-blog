@@ -107,9 +107,16 @@ blog/
 
 3. **Database Setup**
    ```bash
-   # Create the SQLite database and tables
-   sqlite3 blog.db < schema.sql
+   # Create and seed the SQLite database
+   sqlite3 blog.db < seed.sql
    ```
+
+   This will create the database with test users:
+   - alice (password: password123)
+   - bob (password: password123)
+   - carol (password: password123)
+   
+   And populate it with sample posts and comments.
 
 4. **Running the Application**
    ```bash
