@@ -26,7 +26,7 @@ CREATE TABLE IF NOT EXISTS comments (
     author_username TEXT NOT NULL,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
-    FOREIGN KEY (post_id) REFERENCES posts(id),
+    FOREIGN KEY (post_id) REFERENCES posts(id) ON DELETE CASCADE,
     FOREIGN KEY (author_id) REFERENCES users(id)
 );
 
